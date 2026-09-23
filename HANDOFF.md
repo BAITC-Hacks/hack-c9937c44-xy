@@ -23,7 +23,7 @@ The initial prototype is pushed. Start with [README.md](README.md) for the archi
 - `validator_agent.py`: normalized power bounds and wind cut-in/cut-out checks.
 - `main_simulation.py`: daily February simulation, audit sidecars, checkpoints and cumulative `submission.csv`. `main.py` remains a compatible entrypoint.
 - `evaluate.py`: teammate's scoring module, integrated with the completed-run manifest; compares the model with persistence and a simple power curve using later observed SCADA.
-- `preview/`: standalone UI prototype. Its values are synthetic; it does not read model output or call the API.
+- `preview/`: standalone map-led UI prototype with two selectable turbine markers, power/wind layer switch, synchronized hourly timeline, charts, and CSV export. Its values are synthetic; the map is a schematic and it does not read model output or call the API.
 - `tests/`: CPU tests for chronology, data gaps, the model, validation, and simulation.
 
 ## Start the UI and offline example
