@@ -20,6 +20,8 @@ python -m http.server 8765 --bind 127.0.0.1 --directory preview
 
 **Все числа в интерфейсе синтетические.** Он пока не читает результаты Python и не вызывает GPU или погодный API. Формулы демосценария в браузере и CLI независимы. Оценки точности появятся после реального backtest.
 
+Полный исходный код модулей и архив проекта для IDE: [COMPLETE_CODE.md](handoff/COMPLETE_CODE.md) · [wpf-ide-handoff.zip](handoff/wpf-ide-handoff.zip).
+
 ## Архитектура
 
 ```mermaid

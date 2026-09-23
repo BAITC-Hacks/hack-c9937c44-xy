@@ -6,6 +6,8 @@
 
 **Initial baseline commit:** `5806523`; check out the latest branch tip for `main_simulation.py` and the cumulative submission.
 
+The repository also includes a portable source bundle at `handoff/wpf-ide-handoff.zip` and a four-module code listing at `handoff/COMPLETE_CODE.md`.
+
 From the IDE terminal, clone this branch directly:
 
 ```bash
