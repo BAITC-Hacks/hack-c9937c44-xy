@@ -55,6 +55,7 @@
         response = await fetch("/api/report", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ source: $("source").value, date: $("date").value,
+            origin: $("source").value === "synthetic" ? undefined : state.audit?.forecast_origin,
             horizon: state.horizon, rows: $("source").value === "synthetic" ? state.rows : undefined }),
         });
       } catch {

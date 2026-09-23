@@ -1,0 +1,47 @@
+ALEM WIND verification — 2026-09-23
+Repository: /Users/eliasansariy/Documents/Codex/2026-09-23/co/work/alem-wind
+Base commit: 7def914bd788d634edfd727df50af9d90a5df9c8
+
+tests.log
+----------------------------------------------------------------------
+Ran 42 tests in 6.083s
+
+OK
+
+preview-tests.log
+PASS: preview evaluation accepts gaps/non-midnight origins and rejects stale, mismatched, duplicate data
+
+replay.log
+[historical-backtest] 2026-01-30T00:00:00+00:00 -> /Users/eliasansariy/Documents/Codex/2026-09-23/co/work/alem-wind/outputs/replay/forecast_20260130T0000Z.csv
+PASS: offline January replay = original (48 rows, tolerance 1e-6)
+PASS: evaluation = original metrics (48 turbine-hours, tolerance 1e-6)
+PASS: original experiment unchanged
+
+browser-checks.log
+PASS: 144 displayed table values and 96 SVG chart points match evaluation.json
+PASS: browser demo clears real observations and metrics
+PASS: Python demo lists 28 manifest origins and renders 48 hours
+PASS: unavailable run clears charts, table and metrics; CSV export disabled
+PASS: 24-hour model artifact automatically selects the 24-hour horizon
+PASS: selecting development origin and map turbine updates the panel
+PASS: hourly playback advances and stops
+
+PASS: original outputs/backtest and outputs/evaluation.csv match handoff ZIP byte-for-byte
+PASS: 14 completed rolling origins; 672/672 paired turbine-hours; 0 excluded
+PASS: archived weather bounds and training targets precede their cutoffs
+PASS: node --check preview/app.js; node --check preview/evaluation.js; git diff --check
+
+Protocol: 24h horizon, 72h history, 14 training days/samples, 10 epochs, seed 42, CPU pandas; same configuration throughout. Development: Jan 16–24. Holdout: Jan 25–29. Expanding daily retraining with observations available before each issue. Jan 30 was previously inspected and excluded from holdout.
+
+UTC, coordinates, heights and SCADA latency remain unconfirmed. Wind 10m is uncalibrated. Preliminary metrics; January 30 still loses to persistence on MAE. No model architecture or hyperparameter changes in this update.
+NVIDIA environment: Darwin arm64; torch 2.14.0; cuda.is_available() = False; cudf/cuml/cupy absent. GPU/CFD not tested; no GPU instance provisioned.
+
+Reproduce rolling run (repository cwd):
+.venv/bin/python main_simulation.py --data-dir data/raw --data-timezone UTC --history-policy expanding --backend pandas --device cpu --start 2026-01-16 --end 2026-01-29 --horizon 24 --lookback 72 --train-days 14 --min-train-samples 14 --epochs 10 --seed 42 --output outputs/rolling-january
+Evaluation:
+.venv/bin/python evaluate.py --forecasts outputs/rolling-january --turbine-1 "data/raw/Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 1.csv" --turbine-2 "data/raw/Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 2.csv" --data-timezone UTC --holdout-start 2026-01-25T00:00:00Z
+
+Preview: http://127.0.0.1:8766/preview/?run=rolling-january
+Restart: .venv/bin/python -m http.server 8766 --bind 127.0.0.1 --directory .
+
+PASS: exported patch validated with git apply --check --reverse against working tree

@@ -373,6 +373,7 @@ def run(args: argparse.Namespace) -> None:
                 epochs=args.epochs, batch_size=args.batch_size, device=args.device, seed=args.seed,
             )
             manifest["model_config"] = asdict(config)
+            manifest["training_window"] = {"train_days": args.train_days, "min_train_samples": args.min_train_samples}
             manifest["input_files"] = [str(path.resolve()) for path in input_paths]
             manifest["publication_lag_hours_assumption"] = args.publication_lag_hours
             save_manifest()

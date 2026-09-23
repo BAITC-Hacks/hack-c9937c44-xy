@@ -18,3 +18,24 @@ checkpoints/
 .DS_Store
 Thumbs.db
 !tests/fixtures/*.csv
+
+# Published experiment snapshots; raw SCADA and new runs stay local.
+!data/
+data/*
+!data/weather/
+!data/weather/*.json
+!outputs/
+outputs/*
+!outputs/backtest/
+!outputs/backtest/**
+!outputs/replay/
+!outputs/replay/**
+!outputs/rolling-january/
+!outputs/rolling-january/**
+!outputs/gpu-check/
+!outputs/gpu-check/**
+!outputs/rolling-january-gpu/
+!outputs/rolling-january-gpu/**
+!outputs/evidence/
+!outputs/evidence/**
+!outputs/observations.csv

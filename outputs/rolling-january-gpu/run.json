@@ -1,0 +1,86 @@
+{
+  "mode": "historical-backtest",
+  "created_at": "2026-09-23T11:42:49.198009+00:00",
+  "status": "completed",
+  "submission_complete": true,
+  "submission_path": "submission.csv",
+  "submission_rows": 672,
+  "completed_origins": [
+    "2026-01-16T00:00:00+00:00",
+    "2026-01-17T00:00:00+00:00",
+    "2026-01-18T00:00:00+00:00",
+    "2026-01-19T00:00:00+00:00",
+    "2026-01-20T00:00:00+00:00",
+    "2026-01-21T00:00:00+00:00",
+    "2026-01-22T00:00:00+00:00",
+    "2026-01-23T00:00:00+00:00",
+    "2026-01-24T00:00:00+00:00",
+    "2026-01-25T00:00:00+00:00",
+    "2026-01-26T00:00:00+00:00",
+    "2026-01-27T00:00:00+00:00",
+    "2026-01-28T00:00:00+00:00",
+    "2026-01-29T00:00:00+00:00"
+  ],
+  "daily_files": [
+    "forecast_20260116T0000Z.csv",
+    "forecast_20260117T0000Z.csv",
+    "forecast_20260118T0000Z.csv",
+    "forecast_20260119T0000Z.csv",
+    "forecast_20260120T0000Z.csv",
+    "forecast_20260121T0000Z.csv",
+    "forecast_20260122T0000Z.csv",
+    "forecast_20260123T0000Z.csv",
+    "forecast_20260124T0000Z.csv",
+    "forecast_20260125T0000Z.csv",
+    "forecast_20260126T0000Z.csv",
+    "forecast_20260127T0000Z.csv",
+    "forecast_20260128T0000Z.csv",
+    "forecast_20260129T0000Z.csv"
+  ],
+  "simulation_timezone": "UTC",
+  "source_data_timezone": "UTC",
+  "start": "2026-01-16",
+  "end": "2026-01-29",
+  "horizon_hours": 24,
+  "history_policy": "expanding",
+  "turbines": [
+    {
+      "turbine_id": "turbine_1",
+      "latitude": 51.04,
+      "longitude": 71.46
+    },
+    {
+      "turbine_id": "turbine_2",
+      "latitude": 51.05,
+      "longitude": 71.45
+    }
+  ],
+  "synthetic_notice": null,
+  "model_config": {
+    "history_features": 20,
+    "weather_features": 16,
+    "num_turbines": 2,
+    "lookback": 72,
+    "horizon": 24,
+    "hidden_size": 64,
+    "num_heads": 4,
+    "num_layers": 2,
+    "dropout": 0.1,
+    "epochs": 10,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "device": "cuda",
+    "seed": 42,
+    "scaler_backend": "auto"
+  },
+  "training_window": {
+    "train_days": 14,
+    "min_train_samples": 14
+  },
+  "input_files": [
+    "/home/ubuntu/alem-wind/data/raw/Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 1.csv",
+    "/home/ubuntu/alem-wind/data/raw/Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 2.csv"
+  ],
+  "publication_lag_hours_assumption": 8,
+  "completed_at": "2026-09-23T11:43:06.000020+00:00"
+}

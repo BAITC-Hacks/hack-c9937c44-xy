@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 from urllib.parse import unquote, urlsplit
 
-from scientific_report import load_forecast, load_observations, make_report, validate_forecast
+from scientific_report import load_forecast, load_observations, make_report, timestamp, validate_forecast
 
 ROOT = Path(__file__).resolve().parent
 
@@ -22,15 +22,21 @@ def report_input(payload: dict, root: Path = ROOT):
     if not isinstance(payload, dict):
         raise ValueError("Expected a JSON object")
     source, day, horizon = payload.get("source"), payload.get("date"), payload.get("horizon")
-    if source not in ("synthetic", "demo", "backtest"):
+    if not isinstance(source, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", source):
         raise ValueError("Unknown source")
-    if not isinstance(day, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
-        raise ValueError("Invalid issue date")
-    date.fromisoformat(day)
+    if source == "synthetic" or payload.get("origin") is None:
+        if not isinstance(day, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+            raise ValueError("Invalid issue date")
+        date.fromisoformat(day)
+        origin = timestamp(f"{day}T00:00:00+00:00")
+    else:
+        origin = timestamp(payload["origin"])
+    if origin.minute or origin.second or origin.microsecond:
+        raise ValueError("Issue time must align to an hour")
     if type(horizon) is not int or horizon not in (24, 48):
         raise ValueError("Expected a 24h or 48h horizon")
     if source == "synthetic":
-        origin = f"{day}T00:00:00+00:00"
+        origin = origin.isoformat()
         rows = payload.get("rows")
         if not isinstance(rows, list) or len(rows) != horizon:
             raise ValueError("Incomplete browser demo")
@@ -42,13 +48,15 @@ def report_input(payload: dict, root: Path = ROOT):
                  "physical_validation": {"wind_limits_applied": True}}
         forecast = validate_forecast(records, audit)
     else:
-        path = root / "outputs" / source / f"forecast_{day.replace('-', '')}T0000Z.csv"
+        path = root / "outputs" / source / f"forecast_{origin:%Y%m%dT%H%MZ}.csv"
+        if not path.resolve().is_relative_to((root / "outputs").resolve()):
+            raise ValueError("Forecast must be inside outputs")
         forecast = load_forecast(path, horizon)
         expected = "synthetic-demo" if source == "demo" else "historical-backtest"
-        if forecast.audit["mode"] != expected or forecast.origin.date().isoformat() != day:
+        if forecast.audit["mode"] != expected or forecast.origin != origin:
             raise ValueError("Forecast audit does not match requested source/date")
     observed_path = root / "outputs" / "observations.csv"
-    observed = load_observations(observed_path, forecast) if source == "backtest" and observed_path.exists() else None
+    observed = load_observations(observed_path, forecast) if not forecast.demo and observed_path.exists() else None
     return source, forecast, observed
 
 
@@ -78,7 +86,7 @@ class Handler(SimpleHTTPRequestHandler):
         resolved = (ROOT / relative).resolve()
         allowed = (
             (path.startswith("/preview/") and resolved.suffix in (".html", ".js", ".css"))
-            or (re.match(r"^/outputs/(demo|backtest)/forecast_\d{8}T\d{4}Z\.(csv|json)$", path) is not None)
+            or (re.fullmatch(r"/outputs/[A-Za-z0-9_-]+/(forecast_\d{8}T\d{4}Z\.(csv|json)|run\.json|evaluation\.(csv|json)|evaluation-hours\.csv)", path) is not None)
             or (path.startswith("/outputs/reports/") and resolved.suffix in (".pdf", ".html", ".svg", ".png", ".json", ".zip", ".csv"))
         )
         if not allowed or ".." in relative.parts or not resolved.is_relative_to(ROOT) or not resolved.is_file():

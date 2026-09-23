@@ -119,6 +119,29 @@ class ReportTests(unittest.TestCase):
         audit["trained_model"] = False
         with self.assertRaises(ValueError): validate_forecast(rows, audit)
 
+    def test_server_loads_rolling_origin_and_matches_saved_observations(self):
+        rows, audit = fixture()
+        for row in rows:
+            for field in ("forecast_origin", "valid_time"):
+                row[field] = (datetime.fromisoformat(row[field]) + timedelta(hours=19)).isoformat()
+        audit["forecast_origin"] = rows[0]["forecast_origin"]
+        data = validate_forecast(rows, audit)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "outputs" / "rolling-january-gpu"
+            folder.mkdir(parents=True)
+            path = folder / "forecast_20260201T1900Z.csv"
+            path.write_text(forecast_csv(data), encoding="utf-8")
+            path.with_suffix(".json").write_text(json.dumps(audit), encoding="utf-8")
+            (root / "outputs/observations.csv").write_text(
+                "valid_time,turbine_id,power_normalized\n2026-02-01T19:00:00Z,turbine_1,0.7\n")
+            payload = {"source": "rolling-january-gpu", "date": "2026-02-14", "origin": audit["forecast_origin"], "horizon": 24}
+            _, loaded, observed = report_input(payload, root)
+            self.assertEqual(loaded.origin.hour, 19)
+            self.assertEqual(observed[0, 0], .7)
+            payload["origin"] = "2026-02-01T19:01:00Z"
+            with self.assertRaises(ValueError): report_input(payload, root)
+
     def test_report_exports_real_vector_figures_and_verifiable_bundle(self):
         data = validate_forecast(*fixture(demo=True))
         data.audit["conformity_claim"] = True  # An input audit cannot certify our report.

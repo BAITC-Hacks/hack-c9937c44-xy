@@ -13,7 +13,7 @@ from data_agent import DataAgent
 from main_simulation import TURBINES, _atomic_text, hour_index, utc_timestamp
 
 
-def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.DataFrame:
+def comparison_hours(forecast_dir: Path, sources: list[Path], data_timezone: str) -> tuple[dict, pd.DataFrame]:
     manifest = json.loads((forecast_dir / "run.json").read_text(encoding="utf-8"))
     if manifest.get("mode") != "historical-backtest":
         raise ValueError("Only historical-backtest forecasts can be evaluated")
@@ -84,13 +84,9 @@ def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.
         for turbine, history in zip(TURBINES, histories):
             previous_hour = origin - pd.Timedelta(hours=1)
             previous_power = history.power.get(previous_hour, np.nan)
-            if not np.isfinite(previous_power):
-                continue
             part = frame.loc[frame.turbine_id == turbine.turbine_id].copy()
             part["observed"] = history.power.reindex(pd.DatetimeIndex(part.valid_time)).to_numpy()
-            part = part.loc[part.observed.notna()]
-            if part.empty:
-                continue
+            part["observed_wind_ms"] = history.wind_speed.reindex(pd.DatetimeIndex(part.valid_time)).to_numpy()
             part["persistence"] = previous_power
             wind = part.wind_speed_ms.to_numpy()
             part["power_curve"] = np.where(
@@ -98,21 +94,95 @@ def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.
                 np.clip((wind**3 - 3**3) / (12**3 - 3**3), 0, 1),
             )
             part["lead_hour"] = ((part.valid_time - origin) / pd.Timedelta(hours=1)).astype(int) + 1
+            part["eligible"] = part.observed.notna() & part.persistence.notna()
             rows.append(part)
-    if not rows:
-        raise ValueError("No observed forecast hours with a complete prior-hour persistence reference")
     scored = pd.concat(rows, ignore_index=True)
     if ((scored.observed < 0) | (scored.observed > 1)).any():
         raise ValueError("Observed power must be normalized to [0, 1]")
+    if ((scored.persistence < 0) | (scored.persistence > 1)).any():
+        raise ValueError("Persistence power must be normalized to [0, 1]")
+    return manifest, scored
+
+
+def metrics(group: pd.DataFrame) -> dict:
+    paired = group.loc[group.eligible]
+    row = {
+        "n": len(paired), "expected": len(group), "excluded": len(group) - len(paired),
+        "missing_observed": int(group.observed.isna().sum()),
+        "missing_persistence": int(group.persistence.isna().sum()),
+        "origins": int(group.forecast_origin.nunique()),
+        "first_origin": group.forecast_origin.min().isoformat(),
+        "last_origin": group.forecast_origin.max().isoformat(),
+    }
+    for name, column in (("model", "power_normalized"), ("persistence", "persistence"), ("power_curve", "power_curve")):
+        error = paired[column].to_numpy() - paired.observed.to_numpy()
+        row[f"{name}_mae"] = float(np.mean(np.abs(error))) if len(error) else None
+        row[f"{name}_rmse"] = float(np.sqrt(np.mean(error**2))) if len(error) else None
+    if len(paired):
+        row["forecast_wind_mean_ms"] = float(paired.wind_speed_ms.mean())
+        row["observed_wind_mean_ms"] = float(paired.observed_wind_ms.mean())
+    return row
+
+
+def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.DataFrame:
+    """Keep the original per-lead CSV contract for existing callers."""
+    _, hours = comparison_hours(forecast_dir, sources, data_timezone)
+    scored = hours.loc[hours.eligible]
+    if scored.empty:
+        raise ValueError("No observed forecast hours with a complete prior-hour persistence reference")
     result = []
     for (turbine_id, lead_hour), group in scored.groupby(["turbine_id", "lead_hour"], sort=True):
         row = {"turbine_id": turbine_id, "lead_hour": lead_hour, "n": len(group)}
-        for name, column in (("model", "power_normalized"), ("persistence", "persistence"), ("power_curve", "power_curve")):
-            error = group[column].to_numpy() - group.observed.to_numpy()
-            row[f"{name}_mae"] = float(np.mean(np.abs(error)))
-            row[f"{name}_rmse"] = float(np.sqrt(np.mean(error**2)))
+        row.update({key: value for key, value in metrics(group).items() if key.endswith(("_mae", "_rmse"))})
         result.append(row)
     return pd.DataFrame(result)
+
+
+def evaluation_report(manifest: dict, hours: pd.DataFrame, holdout_start: str | None = None) -> dict:
+    """Split whole forecast horizons, purging origins that cross the boundary."""
+    hours = hours.copy()
+    hours["split"] = "all"
+    boundary = utc_timestamp(holdout_start) if holdout_start else None
+    if boundary is not None:
+        if pd.isna(boundary) or boundary != boundary.floor("h"):
+            raise ValueError("Holdout start must be a valid whole-hour timestamp")
+        ends = hours.forecast_origin + pd.Timedelta(hours=manifest["horizon_hours"])
+        hours["split"] = np.where(hours.forecast_origin >= boundary, "holdout",
+                                  np.where(ends <= boundary, "development", "purged"))
+        if not {"development", "holdout"}.issubset(set(hours.split)):
+            raise ValueError("Holdout boundary must leave complete development and holdout origins")
+    summaries, leads, daily = [], [], []
+    for (split, turbine), group in hours.groupby(["split", "turbine_id"], sort=True):
+        summaries.append({"split": split, "turbine_id": turbine, **metrics(group)})
+    for (split, turbine, lead), group in hours.groupby(["split", "turbine_id", "lead_hour"], sort=True):
+        leads.append({"split": split, "turbine_id": turbine, "lead_hour": int(lead), **metrics(group)})
+    for origin, group in hours.groupby("forecast_origin", sort=True):
+        for horizon in (24, 48):
+            if horizon > manifest["horizon_hours"]:
+                continue
+            for turbine in ("both", *(t.turbine_id for t in TURBINES)):
+                selected = group.loc[group.lead_hour <= horizon]
+                if turbine != "both":
+                    selected = selected.loc[selected.turbine_id == turbine]
+                daily.append({"forecast_origin": origin.isoformat(), "horizon_hours": horizon,
+                              "turbine_id": turbine, "split": group.split.iloc[0], **metrics(selected)})
+    for column in ("forecast_origin", "valid_time"):
+        hours[column] = hours[column].map(lambda value: value.isoformat())
+    return {
+        "schema_version": 1, "run_created_at": manifest.get("created_at"),
+        "source_data_timezone": manifest["source_data_timezone"],
+        "horizon_hours": manifest["horizon_hours"], "completed_origins": manifest["completed_origins"],
+        "holdout_start": boundary.isoformat() if boundary is not None else None,
+        "protocol": "Fixed configuration; daily retraining on observations before each origin. Crossing horizons are purged. Overlapping forecast hours are separate cases, not independent observations.",
+        "assumptions": [
+            f"Часовой пояс CSV {manifest['source_data_timezone']} — допущение; требует подтверждения.",
+            "Координаты, высоты и задержка SCADA не подтверждены; метка считается началом интервала.",
+            f"Доступность архивного прогноза: допущение задержки {manifest.get('publication_lag_hours_assumption', 8)} ч.",
+            "Кубическая кривая на ветре 10 м не калибрована. Метрики предварительные.",
+        ],
+        "summary": summaries, "by_lead": leads, "daily_metrics": daily,
+        "rows": json.loads(hours.to_json(orient="records", double_precision=15)),
+    }
 
 
 def main() -> None:
@@ -120,12 +190,19 @@ def main() -> None:
     parser.add_argument("--forecasts", type=Path, required=True, help="Directory of real forecast CSV/JSON files")
     parser.add_argument("--turbine-1", type=Path, required=True)
     parser.add_argument("--turbine-2", type=Path, required=True)
-    parser.add_argument("--data-timezone", required=True, help="Confirmed IANA timezone of source CSV timestamps")
-    parser.add_argument("--output", type=Path, default=Path("outputs/evaluation.csv"))
+    parser.add_argument("--data-timezone", required=True, help="Assumed IANA timezone of source CSV timestamps")
+    parser.add_argument("--holdout-start", help="Timezone-aware first holdout origin; crossing horizons are purged")
+    parser.add_argument("--output", type=Path, help="Default: evaluation.csv beside run.json, ready for the preview")
     args = parser.parse_args()
-    result = evaluate(args.forecasts, [args.turbine_1, args.turbine_2], args.data_timezone)
+    args.output = args.output or args.forecasts / "evaluation.csv"
+    manifest, hours = comparison_hours(args.forecasts, [args.turbine_1, args.turbine_2], args.data_timezone)
+    report = evaluation_report(manifest, hours, args.holdout_start)
+    result = pd.DataFrame(report["by_lead"])
     _atomic_text(args.output, result.to_csv(index=False, float_format="%.7f"))
-    print(f"Scored {int(result.n.sum())} turbine-hours across {len(result)} turbine/lead groups -> {args.output}")
+    _atomic_text(args.output.with_suffix(".json"), json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
+    _atomic_text(args.output.with_name(args.output.stem + "-hours.csv"), pd.DataFrame(report["rows"]).to_csv(index=False, float_format="%.7f"))
+    print(f"Scored {int(result.n.sum())}/{len(hours)} paired turbine-hours -> {args.output}")
+    print(pd.DataFrame(report["summary"])[["split", "turbine_id", "n", "expected", "model_mae", "model_rmse", "persistence_mae", "persistence_rmse"]].to_string(index=False))
 
 
 if __name__ == "__main__":

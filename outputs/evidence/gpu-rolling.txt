@@ -1,0 +1,20 @@
+[historical-backtest] 2026-01-16T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260116T0000Z.csv
+[historical-backtest] 2026-01-17T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260117T0000Z.csv
+[historical-backtest] 2026-01-18T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260118T0000Z.csv
+[historical-backtest] 2026-01-19T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260119T0000Z.csv
+[historical-backtest] 2026-01-20T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260120T0000Z.csv
+[historical-backtest] 2026-01-21T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260121T0000Z.csv
+[historical-backtest] 2026-01-22T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260122T0000Z.csv
+[historical-backtest] 2026-01-23T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260123T0000Z.csv
+[historical-backtest] 2026-01-24T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260124T0000Z.csv
+[historical-backtest] 2026-01-25T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260125T0000Z.csv
+[historical-backtest] 2026-01-26T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260126T0000Z.csv
+[historical-backtest] 2026-01-27T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260127T0000Z.csv
+[historical-backtest] 2026-01-28T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260128T0000Z.csv
+[historical-backtest] 2026-01-29T00:00:00+00:00 -> outputs/rolling-january-gpu/forecast_20260129T0000Z.csv
+      split turbine_id   n  expected  excluded  missing_observed  missing_persistence  origins              first_origin               last_origin  model_mae  model_rmse  persistence_mae  persistence_rmse  power_curve_mae  power_curve_rmse  forecast_wind_mean_ms  observed_wind_mean_ms
+development  turbine_1 216       216         0                 0                    0        9 2026-01-16T00:00:00+00:00 2026-01-24T00:00:00+00:00   0.286086    0.366257         0.336921          0.481892         0.357655          0.506047               3.167176               6.943495
+development  turbine_2 216       216         0                 0                    0        9 2026-01-16T00:00:00+00:00 2026-01-24T00:00:00+00:00   0.281391    0.368497         0.322454          0.465179         0.342951          0.492558               3.167176               6.985347
+    holdout  turbine_1 120       120         0                 0                    0        5 2026-01-25T00:00:00+00:00 2026-01-29T00:00:00+00:00   0.345368    0.390735         0.440778          0.563261         0.288436          0.431351               2.824167               5.445222
+    holdout  turbine_2 120       120         0                 0                    0        5 2026-01-25T00:00:00+00:00 2026-01-29T00:00:00+00:00   0.366877    0.406949         0.455472          0.580702         0.290770          0.437501               2.824167               5.544306
+PASS: 14 CUDA/cuML training origins and 672 evaluated turbine-hours

@@ -1,0 +1,13 @@
+{
+  "python": "3.11.16",
+  "platform": "Linux-6.8.0-1067-gcp-x86_64-with-glibc2.35",
+  "torch": "2.13.0+cu126",
+  "cuda": "12.6",
+  "cudnn": 91002,
+  "numpy": "2.2.6",
+  "pandas": "2.3.3",
+  "cudf": "25.10.00",
+  "cuml": "25.10.00",
+  "cupy": "14.2.0",
+  "gpu": "NVIDIA L4"
+}

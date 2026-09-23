@@ -5,3 +5,9 @@
 *.css text eol=lf
 *.js text eol=lf
 *.yml text eol=lf
+
+# Preserve the exact bytes covered by the experiment's SHA-256 manifest.
+outputs/** -text
+data/weather/** -text
+outputs/observations.csv whitespace=cr-at-eol
+outputs/evidence/gpu-nvidia-smi.txt -whitespace

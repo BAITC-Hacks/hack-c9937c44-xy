@@ -1,0 +1,33 @@
+----------------------------------------------------------------------
+Ran 42 tests in 3.621s
+
+OK (skipped=1)
+{
+  "status": "running",
+  "device": "cuda",
+  "gpu_tested": false,
+  "platform": "Linux-6.8.0-1067-gcp-x86_64-with-glibc2.35",
+  "torch": "2.13.0+cu126",
+  "torch_cuda": "12.6",
+  "gpu": "NVIDIA L4",
+  "cudf": "25.10.00",
+  "cuml": "25.10.00",
+  "cupy": "14.2.0"
+}
+PASS: pandas/cudf hourly features and missing-value masks match
+PASS: same-checkpoint CPU/cuda inference; max difference=3.8743019e-06
+[historical-backtest] 2026-01-30T00:00:00+00:00 -> outputs/gpu-check/forecast_20260130T0000Z.csv
+PASS: cuda training and evaluation completed, 48 rows
+{
+  "python": "3.11.16",
+  "platform": "Linux-6.8.0-1067-gcp-x86_64-with-glibc2.35",
+  "torch": "2.13.0+cu126",
+  "cuda": "12.6",
+  "cudnn": 91002,
+  "numpy": "2.2.6",
+  "pandas": "2.3.3",
+  "cudf": "25.10.00",
+  "cuml": "25.10.00",
+  "cupy": "14.2.0",
+  "gpu": "NVIDIA L4"
+}

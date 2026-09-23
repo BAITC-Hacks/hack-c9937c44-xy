@@ -54,6 +54,17 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+test("model reports use the selected artifact origin instead of the hidden demo date", async () => {
+  let payload;
+  const ui = harness(async (_, options) => { payload = JSON.parse(options.body); return response(); });
+  ui.$("source").value = "rolling-january-gpu";
+  ui.state.audit = { forecast_origin: "2026-01-29T19:00:00+00:00" };
+  await ui.click();
+  assert.equal(payload.source, "rolling-january-gpu");
+  assert.equal(payload.origin, ui.state.audit.forecast_origin);
+  assert.equal(payload.rows, undefined);
+});
+
 test("offline report request shows a local recovery command and restores the button", async () => {
   const ui = harness(async () => { throw new TypeError("Failed to fetch"); }, "http://localhost:8799/preview/");
   await ui.click();

@@ -1,0 +1,405 @@
+{
+  "mode": "historical-backtest",
+  "trained_model": true,
+  "history_policy": "expanding",
+  "observation_cutoff_exclusive": "2026-01-18T00:00:00+00:00",
+  "context_origin": "2026-01-18T00:00:00+00:00",
+  "context_age_hours": 0.0,
+  "history_policy_notice": "Expanding history: full daily retraining using only prior observed SCADA.",
+  "latest_observation": [
+    "2026-01-17T23:00:00+00:00",
+    "2026-01-17T23:00:00+00:00"
+  ],
+  "weather_source": "Open-Meteo previous-runs forecast API / gfs_global",
+  "wind_height_m": 10,
+  "publication_lag_hours_assumption": 8,
+  "weather_availability_bounds_checked": true,
+  "inference_weather": [
+    {
+      "turbine_id": "turbine_1",
+      "issued_at_upper_bound": "2026-01-17T16:00:00+00:00",
+      "available_at_upper_bound": "2026-01-18T00:00:00+00:00",
+      "lead_days": [
+        1,
+        2
+      ]
+    },
+    {
+      "turbine_id": "turbine_2",
+      "issued_at_upper_bound": "2026-01-17T16:00:00+00:00",
+      "available_at_upper_bound": "2026-01-18T00:00:00+00:00",
+      "lead_days": [
+        1,
+        2
+      ]
+    }
+  ],
+  "training": {
+    "samples": 14,
+    "first_origin": "2026-01-04T00:00:00+00:00",
+    "last_origin": "2026-01-17T00:00:00+00:00",
+    "latest_target_time": "2026-01-17T23:00:00+00:00",
+    "targets_strictly_before_observation_cutoff": true,
+    "skipped_incomplete_samples": 0,
+    "forecast_provenance": [
+      {
+        "origin": "2026-01-04T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-03T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-04T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-03T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-04T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-05T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-04T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-05T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-04T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-05T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-06T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-05T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-06T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-05T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-06T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-07T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-06T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-07T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-06T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-07T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-08T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-07T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-08T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-07T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-08T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-09T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-08T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-09T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-08T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-09T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-10T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-09T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-10T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-09T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-10T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-11T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-10T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-11T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-10T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-11T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-12T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-11T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-12T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-11T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-12T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-13T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-12T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-13T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-12T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-13T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-14T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-13T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-14T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-13T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-14T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-15T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-14T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-15T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-14T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-15T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-16T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-15T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-16T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-15T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-16T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "origin": "2026-01-17T00:00:00+00:00",
+        "turbines": [
+          {
+            "turbine_id": "turbine_1",
+            "issued_at_upper_bound": "2026-01-16T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-17T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          },
+          {
+            "turbine_id": "turbine_2",
+            "issued_at_upper_bound": "2026-01-16T16:00:00+00:00",
+            "available_at_upper_bound": "2026-01-17T00:00:00+00:00",
+            "lead_days": [
+              1,
+              2
+            ]
+          }
+        ]
+      }
+    ],
+    "metrics": {
+      "training_mse": 0.08316399157047272,
+      "epoch_training_mse": [
+        0.1579732596874237,
+        0.11220726370811462,
+        0.09888061136007309,
+        0.0979895368218422,
+        0.09685665369033813,
+        0.09610927850008011,
+        0.09078961610794067,
+        0.0886642187833786,
+        0.08612314611673355,
+        0.08316399157047272
+      ],
+      "samples": 14,
+      "epochs": 10,
+      "device": "cpu",
+      "mixed_precision": false,
+      "scaler_backend": "numpy"
+    }
+  },
+  "checkpoint": "checkpoints/model_20260118T0000Z.pt",
+  "forecast_origin": "2026-01-18T00:00:00+00:00",
+  "horizon_hours": 24,
+  "last_valid_time": "2026-01-18T23:00:00+00:00",
+  "rows": 48,
+  "physical_validation": {
+    "power_range": [
+      0,
+      1
+    ],
+    "cut_in_ms": null,
+    "cut_out_ms": null,
+    "wind_limits_applied": false,
+    "strict_wind_thresholds": false,
+    "forced_zero_count": 0
+  }
+}

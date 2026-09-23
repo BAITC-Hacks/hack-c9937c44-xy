@@ -1,0 +1,63 @@
+{
+  "status": "gpu-passed",
+  "device": "cuda",
+  "gpu_tested": true,
+  "platform": "Linux-6.8.0-1067-gcp-x86_64-with-glibc2.35",
+  "torch": "2.13.0+cu126",
+  "torch_cuda": "12.6",
+  "gpu": "NVIDIA L4",
+  "cudf": "25.10.00",
+  "cuml": "25.10.00",
+  "cupy": "14.2.0",
+  "scada_parity": "passed",
+  "inference_max_abs_difference": 3.874301910400391e-06,
+  "inference_tolerance": {
+    "rtol": 0.0001,
+    "atol": 0.0001
+  },
+  "peak_cuda_memory_bytes": 30790144,
+  "training_pipeline_seconds": 13.511744839999892,
+  "evaluation": [
+    {
+      "split": "all",
+      "turbine_id": "turbine_1",
+      "n": 24,
+      "expected": 24,
+      "excluded": 0,
+      "missing_observed": 0,
+      "missing_persistence": 0,
+      "origins": 1,
+      "first_origin": "2026-01-30T00:00:00+00:00",
+      "last_origin": "2026-01-30T00:00:00+00:00",
+      "model_mae": 0.3809358680555556,
+      "model_rmse": 0.4322633759812871,
+      "persistence_mae": 0.28055555555555545,
+      "persistence_rmse": 0.36433157974570357,
+      "power_curve_mae": 0.7092591942230687,
+      "power_curve_rmse": 0.746397228982722,
+      "forecast_wind_mean_ms": 2.3929166541666667,
+      "observed_wind_mean_ms": 9.335833333333333
+    },
+    {
+      "split": "all",
+      "turbine_id": "turbine_2",
+      "n": 24,
+      "expected": 24,
+      "excluded": 0,
+      "missing_observed": 0,
+      "missing_persistence": 0,
+      "origins": 1,
+      "first_origin": "2026-01-30T00:00:00+00:00",
+      "last_origin": "2026-01-30T00:00:00+00:00",
+      "model_mae": 0.32364377222222224,
+      "model_rmse": 0.36540223463444577,
+      "persistence_mae": 0.26756944444444436,
+      "persistence_rmse": 0.3576351402176784,
+      "power_curve_mae": 0.7222453053341799,
+      "power_curve_rmse": 0.7602587020318361,
+      "forecast_wind_mean_ms": 2.3929166541666667,
+      "observed_wind_mean_ms": 9.576944444444445
+    }
+  ],
+  "notice": "Same weights are compared numerically; independent GPU training uses mixed precision and need not equal CPU training. UTC/coordinates/heights remain assumptions."
+}

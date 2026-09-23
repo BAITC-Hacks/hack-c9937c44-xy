@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from data_agent import CSV_COLUMNS
-from evaluate import evaluate
+from evaluate import comparison_hours, evaluate, evaluation_report
 
 
 class EvaluationTests(unittest.TestCase):
@@ -57,6 +57,42 @@ class EvaluationTests(unittest.TestCase):
             self.assertNotIn(6, result.lead_hour.to_list())
             self.assertTrue(np.allclose(result.model_mae, 0.3))
             self.assertTrue(np.allclose(result.persistence_mae, 0.6))
+            manifest, hours = comparison_hours(forecasts, [root / "turbine_1.csv", root / "turbine_2.csv"], "UTC")
+            report = evaluation_report(manifest, hours)
+            self.assertEqual(len(report["rows"]), 48)
+            self.assertEqual(report["summary"][0]["missing_observed"], 1)
+            self.assertEqual(report["summary"][0]["n"], 23)
+            missing = [r for r in report["by_lead"] if r["lead_hour"] == 6]
+            self.assertTrue(all(r["n"] == 0 and r["model_mae"] is None for r in missing))
+            # A missing reference excludes the entire turbine-origin for ALL methods.
+            source = root / "turbine_1.csv"
+            original_source = source.read_text()
+            pd.read_csv(source).iloc[1:].to_csv(source, index=False)
+            _, hours = comparison_hours(forecasts, [source, root / "turbine_2.csv"], "UTC")
+            missing_reference = evaluation_report(manifest, hours)["summary"][0]
+            self.assertEqual(missing_reference["n"], 0)
+            self.assertEqual(missing_reference["excluded"], 24)
+            self.assertEqual(missing_reference["missing_persistence"], 24)
+            self.assertIsNone(missing_reference["model_rmse"])
+            json.dumps(evaluation_report(manifest, hours), allow_nan=False)
+
+            # 48h horizons around a split: Jan 28 is purged, Jan 27 ends at cutoff.
+            full_horizon = pd.concat([hours, hours.assign(valid_time=hours.valid_time + pd.Timedelta(days=1), lead_hour=hours.lead_hour + 24)])
+            overlapping = pd.concat([full_horizon.assign(
+                forecast_origin=full_horizon.forecast_origin + pd.Timedelta(days=offset),
+                valid_time=full_horizon.valid_time + pd.Timedelta(days=offset),
+            ) for offset in (-3, -2, -1)], ignore_index=True)
+            manifest["horizon_hours"] = 48
+            split_report = evaluation_report(manifest, overlapping, "2026-01-29T00:00:00Z")
+            split_times = {name: {r["valid_time"] for r in split_report["rows"] if r["split"] == name}
+                           for name in ("development", "holdout", "purged")}
+            self.assertTrue(all(split_times.values()))
+            self.assertFalse(split_times["development"] & split_times["holdout"])
+            self.assertTrue(all(r["split"] == "purged" for r in split_report["rows"]
+                                if r["forecast_origin"].startswith("2026-01-28")))
+            with self.assertRaisesRegex(ValueError, "leave complete"):
+                evaluation_report(manifest, overlapping, "2026-02-01T00:00:00Z")
+            source.write_text(original_source)
 
             # Later truth may not have arrived yet, as with the supplied CSVs.
             for turbine in ("turbine_1", "turbine_2"):

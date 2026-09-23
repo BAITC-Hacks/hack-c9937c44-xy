@@ -1,0 +1,25 @@
+{
+  "instance": "alem-wind-gpu-check",
+  "instance_id": "6wgbra1cq",
+  "gpu": "NVIDIA L4",
+  "status": "deleted",
+  "created_at_utc": "2026-09-23T11:25:02+00:00",
+  "deletion_confirmed_by_utc": "2026-09-23T11:46:23+00:00",
+  "budget_usd": 2,
+  "compute_rate_usd_per_hour": 0.845421,
+  "estimate_uses_entire_creation_to_deletion_interval": true,
+  "storage_estimate_gb": 128,
+  "storage_rate_usd_per_gb_month": 0.14965,
+  "estimated_cost_usd": 0.3102,
+  "cost_is_estimate_not_final_invoice": true,
+  "results_sha256": "12100d72e633e3c6301e6673a033a2ce88f21377dc98d2dc986aa5bd4b9de1fd",
+  "validation": {
+    "tests_run": 42,
+    "skipped": 1,
+    "failures": 0,
+    "gpu_status": "gpu-passed",
+    "rolling_origins": 14,
+    "scored_turbine_hours": 672,
+    "cpu_gpu_same_weights_max_abs_difference": 3.874301910400391e-06
+  }
+}
