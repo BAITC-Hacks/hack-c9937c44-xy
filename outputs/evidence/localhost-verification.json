@@ -1,0 +1,47 @@
+{
+  "checked_at_utc": "2026-09-23T12:52:59Z",
+  "base_url": "http://localhost:8767",
+  "health": "ok",
+  "private_paths": "404",
+  "run_manifests": [
+    "backtest",
+    "replay",
+    "rolling-january",
+    "gpu-check",
+    "rolling-january-gpu",
+    "demo"
+  ],
+  "economics_matches_reference": true,
+  "report_seconds": 10.47,
+  "report_base_url": "/outputs/reports/rolling-january-gpu/forecast_20260129T0000Z_24h_9e76721567e6/",
+  "n_observed": 48,
+  "figures": 6,
+  "pdf_bytes": 94508,
+  "pdf_sha256": "5fc99168987fb154148b21ee0a7eb2a2f1f590e38aa3605815a646173ceb94ef",
+  "zip_bytes": 1442339,
+  "zip_sha256": "8668fd848d2b503ae89a88548d11692ac2c631a8eeb5fdaefff8a00ad5e9628e",
+  "zip_hashes_verified": true,
+  "source_sha256": {
+    "Dockerfile": "32e0b8c3b89c3ae8c3e115c58f25995242127f1b1d20e3c436b7f9952cf42369",
+    ".dockerignore": "23a499aa5a4edca874e8c4b3c76592b513a302cd444eb03f70442a02f74e4524",
+    "web_app.py": "0a650650157db8521324baeccf440522f8dd0037c6565d8237faa6d31c0da210",
+    "serve_preview.py": "7557db5b284c44f2be2959527cd505dc1985bf2f8d8289fc9bf4752a26136336",
+    "gunicorn.conf.py": "a9894d76109f96b8f1e83c0929e58efc2150ae8f6aa66ddf32e638c9a8b84391",
+    "requirements-web.txt": "bce886903c167573c059fa26e62026736bdbfd13c6518819f8c8aa393b249d34",
+    "compose.yaml": "eb45520dcc439d391c160c290dbc6c620c4e3a4d7597b526ce7d9a58f201615c",
+    "render.yaml": "9abb67865515d297f5ba55f4ab917d5cc3f7ac6004362ed0ff146367bbd3d65b"
+  },
+  "runtime": {
+    "python": "3.11.14",
+    "entrypoint": "serve_preview.py",
+    "requirements": "requirements-reports.txt",
+    "absent_optional_packages": [
+      "torch",
+      "cudf",
+      "cuml",
+      "flask",
+      "gunicorn"
+    ],
+    "docker_used": false
+  }
+}

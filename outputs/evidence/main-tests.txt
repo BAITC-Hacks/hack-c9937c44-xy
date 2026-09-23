@@ -1,0 +1,53 @@
+----------------------------------------------------------------------
+Ran 62 tests in 20.407s
+
+OK
+✔ map uses case coordinates, labels and a fixed metric scale; empty forecasts disable stale markers (18.262875ms)
+✔ WebGL unavailable and style load timeout preserve accessible turbine choices (7.276916ms)
+✔ reduced motion, explicit no-animation and hidden tab are respected (4.701125ms)
+✔ late timeout cannot remove a loaded map; context loss switches to cards (4.446458ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81.914834
+✔ report sends economic assumptions and discards a response after tariff changes (9.658833ms)
+✔ model reports use the selected artifact origin instead of the hidden demo date (5.493ms)
+✔ offline report request shows a local recovery command and restores the button (10.7965ms)
+✔ nonlocal and privileged origins use the known local development port (22.338292ms)
+✔ a dropped response body gives connection recovery guidance (5.625916ms)
+✔ ordinary static servers receive the service startup instructions (1.373667ms)
+✔ server validation errors retain their useful message (6.879625ms)
+✔ successful generation exposes links; failed regeneration clears old results immediately (2.091792ms)
+✔ changing the forecast prevents a stale success from reappearing (0.876459ms)
+✔ a stale failed request does not hide a newer successful report (0.811958ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 85.543292
+✔ model economics sends only assumptions and artifact identity; clearing a forecast clears money (209.561959ms)
+✔ changing a tariff prevents an old monetary result from reappearing (3.69375ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 245.64775
+PASS: preview evaluation accepts gaps/non-midnight origins and rejects stale, mismatched, duplicate data
+PASS: 191 evidence files and 7 executed source files match SHA256
+PASS: backtest: 1 origins, 48 rows; artifacts, timing bounds and metrics
+PASS: replay: 1 origins, 48 rows; artifacts, timing bounds and metrics
+PASS: rolling-january: 14 origins, 672 rows; artifacts, timing bounds and metrics
+PASS: gpu-check: 1 origins, 48 rows; artifacts, timing bounds and metrics
+PASS: rolling-january-gpu: 14 origins, 672 rows; artifacts, timing bounds and metrics
+Original SCADA not checked; use --data-dir to verify observations against the source CSVs.
+PASS: saved GPU parity evidence verified; this command does not run CUDA or attest historical weather publication times.

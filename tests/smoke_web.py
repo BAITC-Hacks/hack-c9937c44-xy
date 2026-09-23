@@ -23,7 +23,8 @@ def fetch(path, payload=None):
 
 assert json.loads(fetch("/healthz")) == {"status": "ok"}
 assert b"ALEM WIND" in fetch("/")
-for name in ("app.js", "evaluation.js", "report-ui.js", "economics-ui.js", "styles.css", "economics.css"):
+for name in ("app.js", "evaluation.js", "report-ui.js", "economics-ui.js", "styles.css", "economics.css",
+             "map-ui.js", "map-ui.css", "assets/maplibre-gl.js", "assets/maplibre-gl.css"):
     assert fetch("/preview/" + name)
 sources = ["backtest", "replay", "rolling-january", "gpu-check", "rolling-january-gpu", "demo"]
 for source in sources:
