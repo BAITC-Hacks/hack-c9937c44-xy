@@ -3,6 +3,7 @@ pandas>=2.2,<3
 requests>=2.32,<3
 torch>=2.4,<3
 tzdata>=2024.1
+matplotlib>=3.9,<4
 # Install cuDF, cuML and compatible CuPy separately in Linux/WSL2:
 # https://docs.rapids.ai/install/
 # Match the RAPIDS release and CUDA version to the NVIDIA cluster image.

@@ -33,12 +33,14 @@ Python 3.11 or later:
 ```bash
 python -m venv .venv
 source .venv/bin/activate                 # Linux / WSL2
-python -m pip install -r requirements-demo.txt
+python -m pip install -r requirements-reports.txt
 python main_simulation.py --demo
-python -m http.server 8765 --bind 127.0.0.1
+python serve_preview.py --port 8767
 ```
 
-Open `http://127.0.0.1:8765/preview/`. Start the server in the repository root so the preview can access `outputs/`. The offline simulation writes clearly labelled synthetic files under `outputs/demo/`; they are not competition forecasts. Select “Python демо” to inspect them, or “Прогноз модели” after a backtest run. Missing files produce a visible empty state.
+Open `http://127.0.0.1:8767/preview/`. The local server serves the dashboard and the on-demand scientific report endpoint. The offline simulation writes synthetic files under `outputs/demo/`; they are not competition forecasts. Select “Python демо” to inspect them, or “Прогноз модели” after a backtest run. Missing files produce a visible empty state.
+
+The “Научные отчёты” section generates a Matplotlib PDF, standalone HTML, SVG and 300-dpi PNG figures, and a ZIP with data and checksums. `scientific_report.py` also provides a CLI; `serve_preview.py` is the localhost service. See `SCIENTIFIC_REPORTS.md` for the observation schema and methodology. Reports never train models; observed data are used solely for retrospective scoring.
 
 ## Important before running the real model
 

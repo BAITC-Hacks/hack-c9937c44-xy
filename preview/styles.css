@@ -346,6 +346,7 @@ h1,h2,h3 {
 
 .controlbar {
   display:flex;
+  flex-wrap:wrap;
   align-items:end;
   gap:24px;
   padding:0 32px 20px
@@ -1732,4 +1733,52 @@ footer strong {
 
 .row-hour:hover {
   text-decoration:underline
+}
+
+/* Scientific reports keep the plots on a white publication canvas. */
+.scientific-reports { margin:24px 32px 32px; padding:28px; border:1px solid var(--line); border-radius:14px; background:#fff }
+.scientific-reports [hidden] { display:none !important }
+.report-heading { display:flex; justify-content:space-between; align-items:start; gap:20px }
+.report-heading h2 { font-size:25px; letter-spacing:-.7px; margin:8px 0 }
+.report-heading p,.report-brief p { color:var(--muted); font-size:12px; line-height:1.7; margin:5px 0 }
+.report-format { font-size:10px; color:#50675e; border:1px solid var(--line); padding:8px 10px; border-radius:6px; white-space:nowrap }
+.report-brief { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:24px 0; padding:20px; background:#f3f6f3; border-left:3px solid #177565 }
+.report-brief strong { font-size:14px }
+.report-brief p { max-width:600px }
+.report-generate { border:0; border-radius:8px; padding:13px 18px; background:#176d5e; color:white; font:inherit; font-size:12px; font-weight:650; white-space:nowrap }
+.report-generate:hover { background:#105447 }
+.report-outline { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px }
+.report-outline article { border:1px solid #dee5df; padding:18px; border-radius:6px }
+.report-outline article>span { font-size:9px; letter-spacing:1px; color:#61776b; font-weight:700 }
+.report-outline h3 { font-size:13px; line-height:1.5; margin:12px 0 8px }
+.report-outline p { font-size:11px; line-height:1.7; color:var(--muted); margin:0 }
+.report-status { margin:18px 0 0; font-size:12px; color:#40584b; line-height:1.7; overflow-wrap:anywhere }
+.report-downloads { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0 }
+.report-downloads a { border:1px solid #c7d7cc; padding:10px 14px; border-radius:6px; font-size:12px; font-weight:650; color:#176d5e; text-decoration:none }
+.report-downloads a:hover { background:#eef5f0 }
+.report-validation { font-size:12px; line-height:1.7; padding:14px 16px; background:#faf7ed; color:#6c5b2f; border-radius:6px }
+.report-figures { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:24px }
+.report-figure { border:1px solid #d5ded8; border-radius:6px; overflow:hidden; background:#fff }
+.report-figure>a { display:block; background:#fff; border-bottom:1px solid #e6ebe8 }
+.report-figure img { display:block; width:100%; height:auto }
+.report-figure h3 { font-size:13px; margin:18px 18px 8px; line-height:1.5 }
+.report-figure p { color:var(--muted); font-size:11px; line-height:1.7; margin:0 18px 16px }
+.figure-exports { display:flex; gap:16px; padding:0 18px 18px }
+.figure-exports a { color:#176d5e; font-size:11px; font-weight:650 }
+.report-footnote { color:var(--muted); font-size:10px; line-height:1.7; margin-top:20px }
+@media (max-width:1150px) {
+  .report-outline { grid-template-columns:1fr 1fr }
+  .report-brief { align-items:start; flex-direction:column; gap:12px }
+}
+@media (max-width:650px) {
+  .controlbar { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px }
+  .field input,.field select { min-width:0; width:100% }
+  .control-meta { grid-column:1 / -1; margin:0 }
+  .scientific-reports { margin:18px 12px; padding:18px }
+  .report-heading { flex-direction:column; gap:8px }
+  .report-heading h2 { font-size:22px }
+  .report-outline,.report-figures { grid-template-columns:1fr }
+  .report-generate { width:100% }
+  .report-downloads { flex-direction:column }
+  .report-downloads a { text-align:center }
 }

@@ -86,6 +86,7 @@ function setSourceLabels() {
   $("shutdown-detail").textContent = windLimitsApplied() ? "турбино-часов в горизонте" : "ветер 10 м · порог не применён";
   $("physics-rule").textContent = windLimitsApplied() ? "0–1 p.u. · ветер <3 или >25 м/с → 0" : "0–1 p.u. · к ветру 10 м пороги турбины не применяются";
   $("download").disabled = false;
+  document.dispatchEvent(new Event("forecast-updated"));
 }
 
 function clearData(message) {
@@ -110,6 +111,7 @@ function clearData(message) {
   $("rows").textContent = "";
   $("toggle-table").textContent = "Нет данных";
   $("status-text").textContent = message;
+  document.dispatchEvent(new Event("forecast-updated"));
 }
 
 async function loadSelection() {
