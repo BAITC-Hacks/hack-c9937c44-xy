@@ -1,26 +1,41 @@
-/* Offline UI concept. All values are synthetic; no model/API calls are made. */
 "use strict";
-const state = {horizon:48,turbine:"both",expanded:false,rows:[]};
+const state = {horizon:48,turbine:"both",expanded:false,rows:[],csv:"",request:0};
 const $ = id => document.getElementById(id);
 const mean = values => values.reduce((a,b)=>a+b,0)/values.length;
 const format = (number,digits=3) => number.toLocaleString("ru-RU",{minimumFractionDigits:digits,maximumFractionDigits:digits});
 const stamp = value => new Date(value).toLocaleString("ru-RU",{timeZone:"UTC",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-function power(wind){return wind<3||wind>25 ? 0 : Math.min(1,Math.max(0,(wind**3-27)/(12**3-27)));}
-function buildRows(){
-  const date = $("date").value;
-  if(!/^2026-02-(0[1-9]|1[0-9]|2[0-8])$/.test(date)){
-    $("date").setCustomValidity("Выберите дату с 1 по 28 февраля 2026 года.");
-    $("date").reportValidity();
-    return false;
+async function loadRows(){
+  const date=$("date");
+  if(!date.value || !date.checkValidity())throw new Error("Выберите дату с января по февраль 2026 года.");
+  const source=$("source").value;
+  const stem=`forecast_${date.value.replaceAll("-","")}T0000Z`;
+  const base=new URL(`../outputs/${source}/${stem}`,location.href);
+  const [csvResponse,auditResponse]=await Promise.all([fetch(base+".csv"),fetch(base+".json")]);
+  if(!csvResponse.ok || !auditResponse.ok)throw new Error(`Файл ${stem} не найден в outputs/${source}. Сначала запустите Python-расчёт.`);
+  const [csv,audit]=await Promise.all([csvResponse.text(),auditResponse.json()]);
+  const expectedMode=source==="demo"?"synthetic-demo":"historical-backtest";
+  const origin=Date.parse(date.value+"T00:00:00Z");
+  if(audit.mode!==expectedMode || Date.parse(audit.forecast_origin)!==origin ||
+     (source==="backtest" && audit.trained_model!==true))throw new Error("CSV-аудит не соответствует выбранному источнику и дате.");
+  const lines=csv.trim().split(/\r?\n/);
+  if(lines.shift()!=="forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms" ||
+     lines.length!==audit.horizon_hours*2 || audit.horizon_hours<state.horizon)throw new Error("Неполный CSV или неверный горизонт прогноза.");
+  const hours=new Map();
+  for(const line of lines){
+    const fields=line.split(",");
+    if(fields.length!==5 || Date.parse(fields[0])!==origin || !["turbine_1","turbine_2"].includes(fields[2]))throw new Error("Некорректная строка прогноза.");
+    const time=Date.parse(fields[1]),power=Number(fields[3]),wind=Number(fields[4]);
+    if(!Number.isFinite(time) || !Number.isFinite(power) || !Number.isFinite(wind) || power<0 || power>1 || wind<0)throw new Error("Некорректные значения прогноза.");
+    const hour=(time-origin)/3600000;
+    if(!Number.isInteger(hour) || hour<0 || hour>=audit.horizon_hours)throw new Error("Время прогноза вне горизонта.");
+    const row=hours.get(hour)||{time:new Date(time).toISOString()};
+    const id=fields[2].slice(-1);
+    if(row["power"+id]!==undefined)throw new Error("Повтор турбины в CSV.");
+    row["power"+id]=power;row["wind"+id]=wind;hours.set(hour,row);
   }
-  $("date").setCustomValidity("");
-  const start=Date.parse(date+"T00:00:00Z"),day=Number(date.slice(-2));
-  state.rows=Array.from({length:state.horizon},(_,i)=>{
-    const wind1=8.9+2.0*Math.sin(i/6+day/5)+1.05*Math.cos(i/2.8)+.4*Math.sin(i*1.8);
-    const wind2=wind1*.94+.45*Math.sin(i/4+1);
-    return {time:new Date(start+i*3600000).toISOString(),wind1,wind2,power1:power(wind1),power2:power(wind2)};
-  });
-  return true;
+  const rows=Array.from({length:state.horizon},(_,hour)=>hours.get(hour));
+  if(rows.some(row=>!row || row.power1===undefined || row.power2===undefined))throw new Error("В CSV пропущены часы или турбины.");
+  return {rows,csv,audit,stem,source};
 }
 function drawChart(){
   const w=760,h=255,left=37,right=12,top=15,bottom=30,pw=w-left-right,ph=h-top-bottom;
@@ -32,7 +47,7 @@ function drawChart(){
   if(state.turbine!=="2")svg+=`<path d="${line("power1")} L${x(state.horizon-1)},${y(0)} L${x(0)},${y(0)} Z" fill="url(#fill)"/><path d="${line("power1")}" fill="none" stroke="#168979" stroke-width="2.2" stroke-linejoin="round"/>`;
   if(state.turbine!=="1")svg+=`<path d="${line("power2")}" fill="none" stroke="#6086b8" stroke-width="2" stroke-linejoin="round" stroke-dasharray="5 3"/>`;
   svg+="</svg>";$("chart").innerHTML=svg;
-  $("chart").setAttribute("aria-label",`Демонстрационный прогноз на ${state.horizon} ${state.horizon===24?"часа":"часов"}. ${state.turbine==="both"?"Обе турбины":"Турбина "+state.turbine}. Почасовые значения доступны в таблице ниже.`);
+  $("chart").setAttribute("aria-label",`Прогноз на ${state.horizon} ${state.horizon===24?"часа":"часов"}. ${state.turbine==="both"?"Обе турбины":"Турбина "+state.turbine}. Почасовые значения доступны в таблице ниже.`);
   const points=state.rows.map((r,i)=>`${i*72/(state.rows.length-1)},${28-r.power1*25}`).join(" ");
   $("spark").innerHTML=`<svg viewBox="0 0 72 30"><polyline points="${points}" fill="none" stroke="#258e73" stroke-width="1.4"/></svg>`;
 }
@@ -42,19 +57,52 @@ function drawTable(){
   $("toggle-table").textContent=state.expanded?"Свернуть таблицу ↑":`Показать все ${state.horizon} ${state.horizon===24?"часа":"часов"} ↓`;
   $("toggle-table").setAttribute("aria-expanded",String(state.expanded));
 }
-function render(){
-  if(!buildRows())return;
-  const values=state.rows.flatMap(r=>[r.power1,r.power2]);
-  $("avg-power").textContent=format(mean(values));
-  $("peak-power").textContent=format(Math.max(...values));
-  const peak=state.rows.find(r=>r.power1===Math.max(...values)||r.power2===Math.max(...values));
-  $("peak-time").textContent=stamp(peak.time)+" UTC";
-  $("avg-wind").textContent=format(mean(state.rows.flatMap(r=>[r.wind1,r.wind2])),1);
-  $("valid-hours").textContent=state.horizon;
-  $("t1-power").textContent=format(mean(state.rows.map(r=>r.power1)));
-  $("t2-power").textContent=format(mean(state.rows.map(r=>r.power2)));
-  $("range-label").textContent=`${stamp(state.rows[0].time)} — ${stamp(state.rows.at(-1).time)} · UTC`;
-  drawChart();drawTable();
+async function render(){
+  const request=++state.request;
+  $("agent-status").textContent="Загрузка прогноза…";
+  try{
+    const {rows,csv,audit,stem,source}=await loadRows();
+    if(request!==state.request)return;
+    state.rows=rows;state.csv=csv;state.stem=stem;
+    $("download").disabled=false;
+    const demo=source==="demo";
+    $("source-note").textContent=demo?
+      "Синтетический офлайн-прогноз из Python. Это не результат модели и не оценка точности.":
+      `Прогноз модели из CSV. История: ${audit.history_policy||"не указана"}. Качество за февраль не оценено.`;
+    $("table-description").textContent=(demo?"Синтетический расчёт Python":"Выход модели")+" · UTC";
+    $("wind-detail").textContent=demo?"Иллюстративный погодный сценарий":"Архивный прогноз ветра на 10 м";
+    $("mode-badge").textContent=demo?"ДЕМО":"МОДЕЛЬ";
+    $("physics-rule").innerHTML="Диапазон мощности 0–1<br>"+
+      ((audit.physical_validation?.wind_limits_applied ?? demo)?"Пороги ветра 3 / 25 м/с":"Ветер 10 м: пороги не применяются");
+    document.querySelectorAll(".demo-chip").forEach(chip=>chip.textContent=demo?"Демо":"Модель");
+    const values=rows.flatMap(r=>[r.power1,r.power2]);
+    $("avg-power").textContent=format(mean(values));
+    $("peak-power").textContent=format(Math.max(...values));
+    const peak=rows.find(r=>r.power1===Math.max(...values)||r.power2===Math.max(...values));
+    $("peak-time").textContent=stamp(peak.time)+" UTC";
+    $("avg-wind").textContent=format(mean(rows.flatMap(r=>[r.wind1,r.wind2])),1);
+    $("valid-hours").textContent=state.horizon;
+    $("t1-power").textContent=format(mean(rows.map(r=>r.power1)));
+    $("t2-power").textContent=format(mean(rows.map(r=>r.power2)));
+    $("range-label").textContent=`${stamp(rows[0].time)} — ${stamp(rows.at(-1).time)} · UTC`;
+    $("agent-status").textContent=demo?"Загружен офлайн-расчёт Python":"Загружен результат модели";
+    drawChart();drawTable();
+  }catch(error){
+    if(request!==state.request)return;
+    state.rows=[];state.csv="";$("download").disabled=true;
+    $("source-note").textContent=error.message;
+    $("agent-status").textContent="Прогноз не загружен";
+    $("table-description").textContent="Нет данных · UTC";
+    $("wind-detail").textContent="—";
+    $("mode-badge").textContent="НЕТ ДАННЫХ";
+    $("physics-rule").textContent="Нет данных";
+    document.querySelectorAll(".demo-chip").forEach(chip=>chip.textContent="—");
+    $("chart").textContent="Нет данных для выбранной даты";
+    $("chart").setAttribute("aria-label","Нет данных для выбранной даты");
+    $("rows").textContent="";$("spark").textContent="";
+    $("toggle-table").textContent="Нет данных";
+    for(const id of ["avg-power","peak-power","peak-time","avg-wind","valid-hours","t1-power","t2-power","range-label"])$(id).textContent="—";
+  }
 }
 document.querySelectorAll("[data-horizon]").forEach(button=>button.addEventListener("click",()=>{
   state.horizon=Number(button.dataset.horizon);
@@ -62,17 +110,15 @@ document.querySelectorAll("[data-horizon]").forEach(button=>button.addEventListe
 }));
 document.querySelectorAll("[data-turbine]").forEach(button=>button.addEventListener("click",()=>{
   state.turbine=button.dataset.turbine;
-  document.querySelectorAll("[data-turbine]").forEach(b=>{const active=b===button;b.classList.toggle("selected",active);b.setAttribute("aria-pressed",String(active));});drawChart();
+  document.querySelectorAll("[data-turbine]").forEach(b=>{const active=b===button;b.classList.toggle("selected",active);b.setAttribute("aria-pressed",String(active));});if(state.rows.length)drawChart();
 }));
+$("source").addEventListener("change",render);
 $("date").addEventListener("change",render);
-$("calculate").addEventListener("click",()=>{render();$("agent-status").textContent="Демо обновлено. GPU и API не запускались.";});
-$("toggle-table").addEventListener("click",()=>{state.expanded=!state.expanded;drawTable();});
+$("calculate").addEventListener("click",render);
+$("toggle-table").addEventListener("click",()=>{if(!state.rows.length)return;state.expanded=!state.expanded;drawTable();});
 $("download").addEventListener("click",()=>{
-  if(!buildRows())return;
-  const origin=state.rows[0].time;
-  const lines=["mode,forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms"];
-  state.rows.forEach(r=>[1,2].forEach(id=>lines.push(`synthetic-demo,${origin},${r.time},${id},${r["power"+id].toFixed(6)},${r["wind"+id].toFixed(3)}`)));
-  const url=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8"}));
-  const a=document.createElement("a");a.href=url;a.download=`DEMO_forecast_${$("date").value}_${state.horizon}h.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  if(!state.csv)return;
+  const url=URL.createObjectURL(new Blob([state.csv],{type:"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download=state.stem+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 render();
