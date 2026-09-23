@@ -1,30 +1,102 @@
-# Prompt for OpenDesign
+# Open Design — интерактивная карта ALEM WIND
 
-Paste the text below into [OpenDesign](https://open-design.ai/), with this repository or the current `preview/` folder attached if your setup supports local files. The reference links are in [DESIGN_REFERENCES.md](DESIGN_REFERENCES.md).
+Готовый промпт для вставки в Open Design. Версия от 23.09.2026. Главный референс — [Electricity Maps](https://app.electricitymaps.com/); наблюдения и ссылки: [DESIGN_REFERENCES.md](DESIGN_REFERENCES.md).
+
+Приложите репозиторий или как минимум `preview/`, `serve_preview.py`, `SCIENTIFIC_REPORTS.md` и `STANDARDS.md`. Скопируйте весь блок ниже. Этот документ задаёт будущий редизайн; текущая карта им не изменяется.
 
 ```text
-Design and build a high-fidelity, responsive web dashboard prototype for ALEM WIND, an internal wind-power forecasting workspace for a two-turbine wind farm near Astana, Kazakhstan. This is an operator tool used to inspect daily, hourly forecasts over 24 or 48 hours and audit how each forecast was produced. It is not a marketing landing page.
+Ты — senior product designer и frontend engineer. Создай работающий интерактивный редизайн ALEM WIND — платформы почасового прогнозирования мощности двух ветроустановок возле Астаны на 24–48 часов. Главный сценарий энергетика: найти турбину → выбрать час → понять прогноз → сравнить турбины → выгрузить научный отчёт.
 
-Start from the existing ALEM WIND prototype in this repository: preview/index.html, preview/styles.css, and preview/app.js. It already uses an Electricity Maps-inspired navigation rail, detail panel, schematic map, and hourly time dock. Keep its restrained forest-green/ivory identity, Russian interface copy, and working controls, then refine the hierarchy and visual quality. Create any exploratory redesign as a separate runnable prototype so the current preview remains available for comparison. Provide desktop (1440px) and mobile (390px) layouts, reusable visual tokens, and accessible interactions.
+ГЛАВНЫЙ РЕФЕРЕНС
+https://app.electricitymaps.com/
+Изучи карту, поиск, выбор региона, боковую панель, переключатели слоёв, легенду и временную шкалу. Перенеси принципы взаимодействия на наш сценарий ВЭС. Используй собственные компоненты и стиль ALEM WIND; не копируй логотип, тексты или код Electricity Maps. Размеры и анимации ниже — требования нашего дизайна, а не утверждения о реализации референса.
 
-Use these products as inspiration for specific patterns, not as visual templates to copy:
-- OpenWindCast: https://openwindcast.com/wind-power-forecast/great-britain/ — clear forecast issue, pending observations, and dated score record.
-- Meteomatics: https://www.meteomatics.com/en/energy-forecasting/wind-power/ — connection between weather and power, physical wind thresholds.
-- Electricity Maps: https://app.electricitymaps.com/map/zone/DE/72h/fifteen_minutes — time navigation and detail panel.
-- MetX: https://www.meteomatics.com/en/weather-visualization/getting-started/ — complementary map, plot, and table views.
+ВИЗУАЛЬНОЕ НАПРАВЛЕНИЕ
+Большая географическая карта — главное рабочее пространство. Светлая подложка, белые панели, спокойный зелёный акцент, точные линии и хорошо читаемые цифры. Качество создают иерархия, пространство, типографика и плавные переходы.
+• Фон #F4F7F3, панели #FFFFFF, текст #172C25, вторичный текст #5E7068, границы #DCE5DE, акцент #176B52.
+• Постоянные идентификаторы серий: T1 — зелёный #177565, T2 — синий #35649A; различай их также маркерами и подписями.
+• Шрифт с кириллицей: Inter или близкий системный sans-serif. Текст 14–16 px, заголовки 20–28 px, ключевые значения 28–36 px; tabular numerals. Подписи не ниже 12 px.
+• Отступы 4/8/12/16/24/32 px, радиусы панелей 12–16 px, лёгкая тень. У текста и графиков достаточно непрозрачная подложка.
+• Весь интерфейс на русском. Конкретные кнопки: «Показать обе турбины», «К началу прогноза», «Сформировать отчёт».
 
-Design the following experience:
-1. A compact sidebar: Overview, Forecast, Turbines, Evaluation, and Data & audit. Header identifies the wind farm and simulation origin (1–28 February 2026), shows UTC explicitly, and has a persistent “DEMO DATA” or real-run status badge.
-2. At the top, date picker for forecast issue date, source selector (browser demo, Python demo, model backtest), 24h/48h segmented control, and a clear export CSV action. Summary cards show forecast mean power and peak power for each turbine. Show the number of hours affected by cut-in/cut-out only when the source audit confirms those limits were applied; the real archive wind is at 10 m and must not trigger hub-height shutdown thresholds.
-3. Make the map-and-detail area the first major surface: a two-marker schematic map, a side panel showing the selected hour and turbine values, a Power/Wind layer switch, and a docked hourly scrubber. Marker selection and the scrubber must update the detail panel and charts together. The map is illustrative, not verified topography or a weather field.
-4. Directly below the map, show a large interactive hourly chart with clearly distinguished lines for T1 (51.04, 71.46) and T2 (51.05, 71.45). Values are normalized active power, 0–1 p.u.; label the unit. Show the selected UTC target hour and make the forecast issue date distinct from target time. Include a turbine filter. Place a smaller aligned wind-speed chart in m/s below it, with a synchronized cursor. Draw 3/25 m/s threshold lines only for sources where the rule was applied. Then show two concise turbine cards and an expandable hourly table with valid hour, power, wind, and any physical constraint applied. On mobile, stack the detail panel, map, scrubber, charts, and table without tiny text.
-5. Provide a “Data & audit” drawer or panel with forecast origin, source forecast model, assumed weather-availability bound, latest observed SCADA hour, training cutoff, model/checkpoint, simulation policy, and data completeness status. Treat provenance as useful operator information rather than decoration. Explain that the weather publication lag is an assumption, not a verified provider issue timestamp.
-6. The Evaluation view can compare a past forecast with later observed power and show MAE/RMSE by turbine and lead hour when observations exist. For February 2026 in the supplied files, show a thoughtful empty state: “Фактические данные за февраль пока недоступны”. Never invent observed production, accuracy scores, uncertainty bands, turbine capacity in MW, or live telemetry.
-7. Preserve and refine the scientific reporting workspace. It generates a PDF, standalone HTML, vector SVG figures, 300-dpi PNG files and a data bundle through the local Matplotlib service. Show four core figures: power/wind trajectories, forecast operating points P(v), power-duration curves, and hourly ramps. When matched observed power exists, add prediction-vs-observation and residual plots with MAE/RMSE/bias and sample counts. Use white scientific plotting canvases, precise axes and units, major/minor grids, restrained colors, distinct line/marker styles and numbered captions. Include methodology and provenance. Never fabricate compressor maps, aerodynamic efficiency contours or manufacturer power curves. Keep the working report-ui.js integration, loading/error states, artifact links, and invalidation of stale reports when the source/date/horizon changes.
+1. КОМПОНОВКА
+Desktop 1440×900: верхняя панель около 64 px; навигация около 72 px; панель объекта 320–360 px; карта занимает оставшуюся ширину и основную высоту. На первом экране видны карта, текущий час, значения турбин и управление временем.
+Навигация: «Карта», «Прогноз», «Турбины», «Научные отчёты», «Данные и расчёт». Разделы действительно открываются; у иконок есть подписи/подсказки и активное состояние.
+Верхняя панель: ALEM WIND, «Ветропарк Астана», источник, дата выпуска, 24 ч / 48 ч, UTC, статус «ДЕМО» или «МОДЕЛЬ». Различай «Выпуск: 14.02.2026 00:00 UTC» и «Час прогноза: 15.02.2026 06:00 UTC».
+Панель деталей: имя турбины, координаты, мощность p.u., прогноз ветра м/с, мини-график на весь горизонт, источник и доступность данных. Подробности — по «Происхождение данных».
+Внизу карты — компактная временная панель. Над ней раскрывается аналитическая панель с графиками мощности и ветра. Она не перекрывает маркеры, легенду и атрибуцию. Научный отчёт — отдельный раздел с сохранением выбранных параметров.
 
-Preserve the expandable wind standards reference in the reporting workspace: GOST 7.32-2017 concerns research-report structure; IEC 61400-12-1:2022 + COR1:2025 concerns measured turbine power performance and uncertainty, not AI forecast accuracy. Link the official sources from STANDARDS.md and retain the explicit implementation status: full research-report formatting is pending, IEC measurement tests have not been performed, and conformity is not assessed. Kazakhstan adoption of the measurement edition is unverified. Do not add compliance badges, steam-turbine classes, or manufacturer curves without evidence. The JSON standards profile travels with exported reports.
+2. НАСТОЯЩАЯ ИНТЕРАКТИВНАЯ КАРТА
+Замени декоративный SVG площадки на географическую карту MapLibre GL JS: pan, wheel/pinch zoom, +/−, север, масштаб, «Показать обе турбины», полноэкранный режим с выходом по Escape. Сохрани атрибуцию поставщика подложки.
+Точки в формате [longitude, latitude]:
+• WTG–001 / turbine_1: [71.46, 51.04].
+• WTG–002 / turbine_2: [71.45, 51.05].
+Это координаты из кейса, их фактическое положение не проверено: укажи это в сведениях об объекте. При открытии fitBounds охватывает обе точки с отступами под панели. Не меняй координаты ради раскладки.
+Маркер: символ ВЭУ, номер 01/02 и подпись текущего значения. Состояния: обычный, hover, выбранный, нет данных. Hover даёт краткую подсказку; click/Enter закрепляет выбор. Список турбин дублирует выбор с карты. При столкновении подписей сократи их или вынеси в tooltip, сохранив доступ к обоим объектам.
+Поиск работает по «WTG–001», «WTG–002», «Турбина 1», «Турбина 2». Выбор результата плавно фокусирует карту. После ручного перемещения не возвращай камеру при каждом новом часе.
+Слои «Мощность» и «Ветер» меняют значения и окраску маркеров, легенду и единицы. Мощность: фиксированная шкала 0–1 p.u. Ветер: м/с, одна согласованная шкала на весь загруженный горизонт. Контур и номер сохраняют идентичность T1/T2 при смене слоя. Пропуски — серый символ и «Нет данных», а не ноль.
+Подложка показывает настоящую географию: населённые пункты, дороги, воду; рельеф — только с источником. Вынеси её подключение в конфигурацию, укажи поставщика и нужные параметры, без секретных токенов в исходниках. Если tiles/WebGL недоступны, покажи «Карта недоступна» и повтор; список, графики и отчёты продолжают работать. Не оставляй бесконечную загрузку.
 
-Interactions must work in the prototype: change date, source, and 24h/48h range; filter turbines; synchronize chart tooltip and hourly table; show audit context; export the loaded CSV; and generate scientific reports. Keep the current local artifact loader for daily forecast CSVs and JSON audits and POST /api/report through serve_preview.py. The browser-only demo may remain deterministic and clearly labelled. Show an empty state when an artifact is missing, never stale results. No external API calls or authentication are needed in the local UI.
+3. ВРЕМЯ И СИНХРОНИЗАЦИЯ
+Почасовой scrubber: 24/48 реальных позиций, даты, текущий UTC-час, lead time «+18 ч». Кнопки предыдущего/следующего часа, play/pause, «К началу». Скорости 0.5× / 1× / 2×; при 1× — один прогнозный час в секунду.
+Воспроизведение запускает пользователь; на последнем часе оно останавливается. Смена источника/даты/горизонта останавливает его. В скрытой вкладке приостанавливай анимации.
+Один выбранный час управляет картой, панелью, обеими диаграммами и строкой таблицы. Scrubber или click по графику меняют этот час. Hover показывает временную подсказку; уход курсора возвращает закреплённый час. Не используй независимые таймеры компонентов.
+Данные дискретные, почасовые. Плавный курсор не создаёт промежуточных измерений и не меняет экспортируемые значения.
 
-Use typography that is readable at normal desktop and mobile sizes, strong focus states, color contrast, a legend that does not rely on color alone, and reduced-motion support. Deliver the runnable HTML/CSS/JS files, a short design-system note (color, type, spacing, chart rules), and a brief explanation of the most important design choices. Show realistic Russian UI labels, but do not imply the synthetic prototype is a validated February forecast.
+4. АНИМАЦИИ
+Реализуй плавные взаимодействия:
+• Hover/focus кнопок и маркеров: 120–160 ms, смена фона/контура.
+• Панель объекта: 220–280 ms, сдвиг 8–12 px и opacity, без скачка размера карты.
+• Фокус карты по явному выбору: 450–650 ms ease-out; пользователь может прервать движение.
+• Выбор турбины: один контурный импульс 500–700 ms, затем устойчивое выделение.
+• Смена слоя: 180–220 ms для цвета и легенды; подписи всегда соответствуют слою.
+• Курсор времени и выделение строки: около 120 ms. Цифры обновляй до точного значения без искусственного счётчика промежуточных величин.
+• Skeleton только при реальной загрузке, без выдуманного процента. Готовность отчёта — спокойное появление ссылок и сообщение в live region.
+Добавь «Анимации» и поддержку prefers-reduced-motion: убирай декоративные переходы и перелёты камеры, сохраняй ручное время. Используй transform/opacity и requestAnimationFrame там, где нужен цикл; не перестраивай карту каждый час. Не вращай символы ВЭУ как показание реальных оборотов: RPM неизвестны.
+
+5. ВИЗУАЛИЗАЦИЯ ВЕТРА
+Нам нравится выразительный погодный слой Electricity Maps. Спроектируй «Потоки ветра» с частицами, плотностью и прозрачностью, связав доступность с данными.
+Сейчас есть скорость в двух точках, без направления и пространственной сетки. В модели частицы недоступны: «Для потоков нужны направление и поле ветра». Не рисуй выдуманные стрелки, тепловую карту или перетоки между турбинами.
+Для демонстрации эффекта разрешён отдельный выключенный по умолчанию переключатель «Иллюстрация потоков · синтетика», только в демо. При включении постоянно видны это обозначение и «Не погодный прогноз». Частицы не меняют значения, проверки или отчёты; переход к модели автоматически их выключает.
+Будущий реальный слой принимает векторное поле с valid_time, временем выпуска/доступности, сеткой и единицами. Прогноз должен быть доступен на момент выпуска T. Современная погода и reanalysis не подставляются в исторический февраль.
+
+6. ГРАФИКИ И УДОБСТВО
+Две синхронные диаграммы: мощность T1/T2 в p.u. и ветер в м/с. Чёткие оси, спокойная сетка, общая ось времени, маркер выбранного часа. Фильтр «Обе / T1 / T2», tooltip с датой, временем, значениями и единицами. Цвет дополняется формой маркеров/типом линий.
+В режиме «Обе» сводка подписана «Средняя нормализованная мощность двух турбин». Это не суммарная мощность станции: MW, MWh и номинальная мощность неизвестны.
+Таблица с закреплённым заголовком и выбором строки показывает те же данные. «Скачать выбранные 24/48 ч» выгружает выбранный горизонт для обеих турбин с прежним CSV-контрактом. Если сохраняешь отдельное скачивание исходного файла, подпиши его фактический горизонт: сейчас state.csv может содержать 48 часов при отображении 24. На мобильном прокрутка таблицы остаётся внутри контейнера.
+Пороги 3/25 м/с показывай лишь при явном подтверждении применения в аудите. В модельном прогнозе ветер на 10 м, пороги высоты ступицы к нему не применяются.
+Для факта и качества февраля: «Фактические данные за февраль пока недоступны». Не создавай проценты достоверности, доверительные интервалы, live-телеметрию, КПД или вымышленные KPI.
+Первое использование: до трёх закрываемых подсказок — турбина, время, отчёт. У действий есть loading/success/empty/error/retry: понятно, что произошло и как продолжить.
+
+7. НАУЧНЫЕ ОТЧЁТЫ
+Сохрани PDF, автономный HTML, SVG, PNG 300 dpi, ZIP с данными, аудитом и контрольными суммами. Четыре рисунка: траектории, прогнозные точки P(v), обеспеченность мощности, часовые изменения. При факте — сравнение и ошибки с MAE/RMSE/bias и числом совпавших часов.
+До запуска видны источник, выпуск, горизонт и «Обе турбины». Выбор маркера не меняет охват отчёта. Новый запрос сразу скрывает прежние результаты. Смена параметров блокирует поздний ответ от старого запроса. При потере соединения — понятное сообщение и повтор вместо raw «Failed to fetch».
+Сохрани справку STANDARDS.md: ГОСТ 7.32-2017 — оформление НИР; IEC 61400-12-1:2022 + COR1:2025 — измерения характеристик ВЭУ. Текущий аналитический отчёт не подтверждает полное соответствие. Не добавляй знак сертификации.
+
+8. АДАПТИВНОСТЬ И ДОСТУПНОСТЬ
+Реализуй 1440×900, 1024×768 и 390×844. На телефоне карта остаётся главным экраном; детали — нижняя панель «сводка / детали» с кнопками раскрытия в дополнение к жесту. Временная панель, safe areas и нижняя навигация не перекрываются. Поиск — на ширину экрана; графики доступны отдельной вкладкой панели.
+Касания ≥44×44 px, видимый focus, достаточный контраст, aria-label иконок. Escape закрывает временные панели, фокус возвращается к вызвавшей кнопке. Турбину и час можно выбрать с клавиатуры без canvas. Клавиши времени не перехватывают ввод в полях. У цвета есть легенда и числовая альтернатива.
+
+9. ИНТЕГРАЦИЯ
+Прочитай preview/index.html, styles.css, app.js, report-ui.js. Создай /preview/redesign.html с отдельными стилями/скриптами рядом; исходный вариант оставь доступным. Используй текущий HTML/CSS/JS стек и MapLibre без ненужной смены фреймворка.
+Запуск: python serve_preview.py --port 8767. Адрес: http://127.0.0.1:8767/preview/redesign.html. Обычный http.server не поддерживает API отчётов. Новые локальные map assets требуют узкого расширения allowlist сервера; не открывай весь репозиторий. Недоступность внешней подложки не блокирует локальные прогнозы и отчёты.
+Сохрани или явно адаптируй контракты:
+• Источники synthetic / demo / backtest.
+• State: horizon 24|48; turbine both|1|2; layer power|wind; hour; rows; audit; csv. Row: {time,power1,power2,wind1,wind2}.
+• GET /outputs/{demo|backtest}/forecast_YYYYMMDDT0000Z.csv и соседний .json. CSV: forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms. Январский тест 30.01.2026 остаётся доступным наряду с февралем.
+• selectHour(index) синхронизирует час; document event «forecast-updated» инвалидирует отчёты. Скрипты используют общие state и $: не ломай их частичным переводом в ES modules.
+• Same-origin POST /api/report: {source,date,horizon,rows?}; rows только для synthetic. Для demo/backtest сервер читает файлы сам. Ответ {base_url,report}; ссылки base_url + report.html/pdf/bundle, рисунки report.figures.
+• Сохрани сетевые ошибки, защиту от устаревшего ответа и tests/report-ui.test.cjs; при адаптации обнови проверки.
+Если исходники не приложены, создай тот же интерфейс с отдельным детерминированным демо-адаптером; недоступные серверные операции обозначай честно. В результате перечисли, что действительно подключено.
+
+10. РЕЗУЛЬТАТ И ПРИЁМКА
+Предоставь runnable HTML/CSS/JS, конфигурацию подложки, короткий README запуска, дизайн-токены, таблицу анимаций и три адаптивных представления. Основные кнопки работают. Подтверждённые проверки отделены от целевых, но не измеренных показателей производительности.
+Проверь:
+1) Поиск T2 → выбор → фокус → одинаковые значения в панели/графиках. «Обе турбины» восстанавливает границы без смены часа.
+2) Play/pause, scrubber и click графика синхронны; последний час останавливает playback; reduced motion убирает декорации.
+3) Смена даты/источника очищает старые данные. Недоступный файл/поздний ответ не возвращает прежний прогноз.
+4) Смена слоя меняет единицы/легенду, сохраняя координаты и час. Модель не показывает синтетические потоки.
+5) Отчёт использует существующий API; ссылки ведут на реальные файлы. При сбое есть повтор, старый результат скрыт.
+6) На 390 px доступны турбины, время, закрытие панели и отчёт; нет горизонтального скролла всей страницы. Без карты/WebGL доступны данные.
+Итог: спокойная, точная, современная географическая рабочая среда энергетика с плавными взаимодействиями и ясным происхождением данных.
 ```

@@ -2,6 +2,18 @@
 
 Reviewed 23 September 2026. These are references for product decisions and interaction patterns, not templates to copy. The target is an operator dashboard for two turbines and a 24–48 hour hourly forecast. Our [current prototype](preview/index.html) now has a map and detail panel, date and horizon controls, a synchronized hourly timeline, two charts, and an hourly table.
 
+## Updated brief: geographic map and motion
+
+The user selected [Electricity Maps](https://app.electricitymaps.com/) as the principal reference. The updated [Open Design prompt](OPEN_DESIGN_PROMPT.md) now requests a real geographic map, a coordinated time cursor, animated object panels and a mobile bottom sheet. This supersedes the earlier schematic-map recommendation below; the current running prototype remains schematic until the redesign is implemented.
+
+The live reference was inspected on 23 September 2026: a dominant map, area search, zoom controls, a layers menu, a numeric legend and a time slider. Selecting Kazakhstan opened a detail panel; enabling Wind displayed a directional weather overlay with its own m/s legend. The product also describes layer switching and regional exploration on its [official map page](https://www.electricitymaps.com/platform/map). These are observed reference patterns, not evidence that our data supports the same weather layer.
+
+For ALEM WIND, region selection becomes turbine selection; the time slider advances in hours. Power and wind markers share the selected time with the charts and table. Our data contains two point forecasts and no wind directions: real directional particles require another forecast data source. An optional illustrative particle mode belongs exclusively to clearly labelled synthetic demo mode. Camera timings, palette, mobile layout and motion specifications in the prompt are our proposed design choices.
+
+Implementation references: [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/) for a geographic browser map and [source attribution](https://maplibre.org/maplibre-style-spec/sources/) for the basemap. The prompt requires a configured basemap source, visible attribution and a usable fallback when the map cannot load. It preserves the existing same-origin report API and recovery from connection failures.
+
+## Earlier supporting references
+
 | Reference | What to inspect | Application to ALEM WIND |
 | --- | --- | --- |
 | [OpenWindCast — Great Britain wind forecast](https://openwindcast.com/wind-power-forecast/great-britain/) | Forecast value, explicit “metered not yet” state, recent score, forecast-vs-observation chart, and a dated record table. | Make forecast issue time and later verification visible. Keep the current February actuals in an “unavailable” state. Its 80% interval is **not** a feature of our model and must not be fabricated. |
