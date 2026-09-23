@@ -1,7 +1,7 @@
-/* Offline design prototype. All values are deterministic and synthetic. */
+/* Map-led forecast viewer. Browser demo is synthetic; Python modes load audited artifacts. */
 "use strict";
 
-const state = { horizon: 48, turbine: "both", layer: "power", hour: 12, expanded: false, rows: [], timer: null };
+const state = { horizon: 48, turbine: "both", layer: "power", hour: 12, expanded: false, rows: [], timer: null, csv: "", audit: null, request: 0 };
 const $ = id => document.getElementById(id);
 const format = (value, digits = 3) => value.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const mean = values => values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -13,12 +13,6 @@ const selectedIds = () => state.turbine === "both" ? [1, 2] : [Number(state.turb
 
 function buildRows() {
   const date = $("date").value;
-  if (!/^2026-02-(0[1-9]|1[0-9]|2[0-8])$/.test(date)) {
-    $("date").setCustomValidity("Выберите дату с 1 по 28 февраля 2026 года.");
-    $("date").reportValidity();
-    return false;
-  }
-  $("date").setCustomValidity("");
   const start = Date.parse(`${date}T00:00:00Z`);
   const day = Number(date.slice(-2));
   state.rows = Array.from({ length: state.horizon }, (_, hour) => {
@@ -30,7 +24,121 @@ function buildRows() {
     };
   });
   state.hour = clamp(state.hour, 0, state.rows.length - 1);
-  return true;
+  const origin = state.rows[0].time;
+  const lines = ["forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms"];
+  state.rows.forEach(row => [1, 2].forEach(id => lines.push(`${origin},${row.time},turbine_${id},${row[`power${id}`].toFixed(6)},${row[`wind${id}`].toFixed(3)}`)));
+  state.csv = lines.join("\n") + "\n";
+  state.stem = `DEMO_forecast_${date}_${state.horizon}h`;
+  state.audit = { mode: "synthetic-demo", physical_validation: { wind_limits_applied: true } };
+}
+
+async function loadArtifact(requestedHorizon) {
+  const date = $("date").value;
+  const source = $("source").value;
+  const stem = `forecast_${date.replaceAll("-", "")}T0000Z`;
+  const base = new URL(`../outputs/${source}/${stem}`, location.href);
+  const [csvResponse, auditResponse] = await Promise.all([fetch(`${base}.csv`), fetch(`${base}.json`)]);
+  if (!csvResponse.ok || !auditResponse.ok) throw new Error(`Файл ${stem} не найден в outputs/${source}. Запустите Python-расчёт и откройте /preview/ из корня проекта.`);
+  const [csv, audit] = await Promise.all([csvResponse.text(), auditResponse.json()]);
+  const origin = Date.parse(`${date}T00:00:00Z`);
+  const expectedMode = source === "demo" ? "synthetic-demo" : "historical-backtest";
+  if (audit.mode !== expectedMode || Date.parse(audit.forecast_origin) !== origin || (source === "backtest" && audit.trained_model !== true)) throw new Error("CSV-аудит не соответствует источнику и дате.");
+  const lines = csv.trim().split(/\r?\n/);
+  if (lines.shift() !== "forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms" || ![24, 48].includes(audit.horizon_hours) || lines.length !== audit.horizon_hours * 2) throw new Error("Неполный CSV или неверный горизонт прогноза.");
+  const hours = new Map();
+  for (const line of lines) {
+    const fields = line.split(",");
+    if (fields.length !== 5 || Date.parse(fields[0]) !== origin || !["turbine_1", "turbine_2"].includes(fields[2])) throw new Error("Некорректная строка прогноза.");
+    const time = Date.parse(fields[1]), power = Number(fields[3]), wind = Number(fields[4]);
+    if (!Number.isFinite(time) || !Number.isFinite(power) || !Number.isFinite(wind) || power < 0 || power > 1 || wind < 0) throw new Error("Некорректные значения прогноза.");
+    const hour = (time - origin) / 3600000;
+    if (!Number.isInteger(hour) || hour < 0 || hour >= audit.horizon_hours) throw new Error("Время прогноза вне горизонта.");
+    const row = hours.get(hour) || { time: new Date(time).toISOString() };
+    const id = fields[2].slice(-1);
+    if (row[`power${id}`] !== undefined) throw new Error("Повтор турбины в CSV.");
+    row[`power${id}`] = power;
+    row[`wind${id}`] = wind;
+    hours.set(hour, row);
+  }
+  const horizon = Math.min(requestedHorizon, audit.horizon_hours);
+  const rows = Array.from({ length: horizon }, (_, hour) => hours.get(hour));
+  if (rows.some(row => !row || row.power1 === undefined || row.power2 === undefined)) throw new Error("В CSV пропущены часы или турбины.");
+  return { rows, csv, audit, stem, source, horizon };
+}
+
+function windLimitsApplied() { return state.audit?.physical_validation?.wind_limits_applied !== false; }
+
+function setSourceLabels() {
+  const source = $("source").value;
+  const browserDemo = source === "synthetic";
+  const pythonDemo = source === "demo";
+  $("mode-badge").innerHTML = `<i></i> ${source === "backtest" ? "МОДЕЛЬ" : "ДЕМО"}`;
+  $("inspector-mode").textContent = source === "backtest" ? "МОДЕЛЬ" : "ДЕМО";
+  $("footer-status").textContent = source === "backtest" ? "Результат модели · без оценки точности" : "Демонстрационный интерфейс · сентябрь 2026";
+  $("source-note").textContent = browserDemo
+    ? "Синтетический сценарий интерфейса. Не является результатом модели или оценкой точности."
+    : pythonDemo ? "Загружен синтетический офлайн-прогноз Python. Это не результат модели или оценка точности."
+      : "Загружен выход модели из CSV и JSON-аудита. Качество за февраль не оценено.";
+  $("source-title").textContent = browserDemo ? "Синтетический сценарий интерфейса" : pythonDemo ? "Офлайн-расчёт Python" : "Прогноз модели";
+  $("source-detail").textContent = browserDemo ? "Архив погоды и модель не запускались" : pythonDemo ? "Синтетические погодные данные" : `Архивный прогноз погоды · ${state.audit?.history_policy || "история до даты выпуска"}`;
+  $("table-description").textContent = `${browserDemo ? "Синтетические значения" : pythonDemo ? "Python демо" : "Выход модели"} · UTC`;
+  $("threshold-note").textContent = windLimitsApplied() ? "Пороги: 3 / 25 м/с" : "Ветер 10 м · пороги не применены";
+  $("shutdown-detail").textContent = windLimitsApplied() ? "турбино-часов в горизонте" : "ветер 10 м · порог не применён";
+  $("physics-rule").textContent = windLimitsApplied() ? "0–1 p.u. · ветер <3 или >25 м/с → 0" : "0–1 p.u. · к ветру 10 м пороги турбины не применяются";
+  $("download").disabled = false;
+}
+
+function clearData(message) {
+  state.rows = [];
+  state.csv = "";
+  state.audit = null;
+  $("download").disabled = true;
+  $("source-note").textContent = message;
+  $("mode-badge").textContent = "НЕТ ДАННЫХ";
+  $("inspector-mode").textContent = "—";
+  $("footer-status").textContent = "Прогноз не загружен";
+  $("source-title").textContent = "Прогноз не загружен";
+  $("source-detail").textContent = message;
+  $("table-description").textContent = "Нет данных · UTC";
+  $("condition-title").textContent = "Нет данных";
+  $("condition-copy").textContent = "Выберите доступную дату и источник.";
+  $("threshold-note").textContent = "—";
+  $("physics-rule").textContent = "Нет данных";
+  for (const id of ["selected-time", "dock-time", "current-value", "asset-1-value", "asset-2-value", "pin-1-value", "pin-2-value", "avg-power", "peak-power", "peak-time", "avg-wind", "shutdown-hours", "t1-mean", "t2-mean", "range-label", "origin-label", "range-start", "range-middle", "range-end"]) $(id).textContent = "—";
+  $("power-chart").textContent = "Нет данных для выбранной даты";
+  $("wind-chart").textContent = "Нет данных для выбранной даты";
+  $("rows").textContent = "";
+  $("toggle-table").textContent = "Нет данных";
+  $("status-text").textContent = message;
+}
+
+async function loadSelection() {
+  stopPlayback();
+  const request = ++state.request;
+  const date = $("date");
+  if (!date.value || !date.checkValidity()) { clearData("Выберите дату с января по февраль 2026 года."); return; }
+  const requestedHorizon = state.horizon;
+  if ($("source").value === "synthetic") {
+    buildRows();
+    setSourceLabels();
+    render();
+    return;
+  }
+  clearData("Загрузка прогноза…");
+  try {
+    const { rows, csv, audit, stem, horizon } = await loadArtifact(requestedHorizon);
+    if (request !== state.request) return;
+    state.rows = rows;
+    state.csv = csv;
+    state.audit = audit;
+    state.stem = stem;
+    state.horizon = horizon;
+    state.hour = clamp(state.hour, 0, rows.length - 1);
+    setSourceLabels();
+    render();
+  } catch (error) {
+    if (request === state.request) clearData(error.message);
+  }
 }
 
 function setPressed(selector, attribute, value) {
@@ -48,7 +156,7 @@ function drawMap() {
   const values = ids.map(id => row[`${metric}${id}`]);
   const value = mean(values);
   const unit = state.layer === "power" ? "p.u." : "м/с";
-  const stopped = ids.filter(id => row[`wind${id}`] < 3 || row[`wind${id}`] > 25);
+  const stopped = windLimitsApplied() ? ids.filter(id => row[`wind${id}`] < 3 || row[`wind${id}`] > 25) : [];
 
   $("selected-time").textContent = `${timeLabel(row.time)} UTC`;
   $("dock-time").textContent = `${timeLabel(row.time)} UTC · час ${state.hour + 1} из ${state.horizon}`;
@@ -61,8 +169,8 @@ function drawMap() {
   $("reading-ring").style.setProperty("--ring-color", state.layer === "power" ? "#158b79" : "#4c78ad");
   $("site-map").classList.toggle("wind-layer", state.layer === "wind");
   $("map-legend-label").textContent = state.layer === "power" ? "Нормализованная мощность · p.u." : "Прогноз ветра на 10 м · м/с";
-  $("condition-title").textContent = stopped.length ? "Сработал порог ветра" : "Физическая проверка пройдена";
-  $("condition-copy").textContent = stopped.length
+  $("condition-title").textContent = !windLimitsApplied() ? "Мощность в диапазоне 0–1" : stopped.length ? "Сработал порог ветра" : "Физическая проверка пройдена";
+  $("condition-copy").textContent = !windLimitsApplied() ? "Ветер на высоте 10 м: пороги турбины не применяются" : stopped.length
     ? `${stopped.map(id => `T${id}: ${format(row[`wind${id}`], 1)} м/с`).join(" · ")} · соответствующая мощность 0 p.u.`
     : "Порог включения 3 м/с · отключения 25 м/с";
   $("condition-dot").parentElement.classList.toggle("warn", stopped.length > 0);
@@ -90,7 +198,7 @@ function drawSummary() {
   $("peak-power").textContent = format(peak);
   $("peak-time").textContent = `${timeLabel(peakRow.time)} UTC`;
   $("avg-wind").textContent = format(mean(winds), 1);
-  $("shutdown-hours").textContent = String(winds.filter(wind => wind < 3 || wind > 25).length);
+  $("shutdown-hours").textContent = windLimitsApplied() ? String(winds.filter(wind => wind < 3 || wind > 25).length) : "—";
   $("t1-mean").textContent = format(mean(state.rows.map(row => row.power1)));
   $("t2-mean").textContent = format(mean(state.rows.map(row => row.power2)));
   $("range-label").textContent = `${timeLabel(state.rows[0].time)} — ${timeLabel(state.rows.at(-1).time)} · UTC`;
@@ -108,10 +216,10 @@ function drawChart(kind) {
   const y = value => top + (1 - value / max) * plotH;
   const key = id => `${kind}${id}`;
   const line = id => state.rows.map((row, index) => `${index ? "L" : "M"}${x(index).toFixed(1)} ${y(row[key(id)]).toFixed(1)}`).join(" ");
-  const grid = isWind ? [0, 3, 10, 20, 25] : [0, 0.25, 0.5, 0.75, 1];
+  const grid = isWind ? (windLimitsApplied() ? [0, 3, 10, 20, 25] : [0, 5, 10, 15, 20, 25]) : [0, 0.25, 0.5, 0.75, 1];
   let svg = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
   grid.forEach(level => {
-    const important = isWind && (level === 3 || level === 25);
+    const important = isWind && windLimitsApplied() && (level === 3 || level === 25);
     svg += `<line x1="${left}" y1="${y(level)}" x2="${width - right}" y2="${y(level)}" stroke="${important ? "#dfc18d" : "#e7eee9"}" stroke-dasharray="${important ? "4 4" : "3 5"}"/><text x="${left - 9}" y="${y(level) + 3}" text-anchor="end" font-size="9" fill="${important ? "#a47a37" : "#94a49b"}">${isWind ? level : level.toFixed(2)}</text>`;
   });
   const ticks = state.horizon === 48 ? [0, 12, 24, 36, 47] : [0, 6, 12, 18, 23];
@@ -136,8 +244,8 @@ function drawTable() {
   const visible = state.expanded ? state.rows : state.rows.slice(start, start + 5);
   $("rows").innerHTML = visible.map((row, offset) => {
     const hour = state.expanded ? offset : start + offset;
-    const stopped = [1, 2].filter(id => row[`wind${id}`] < 3 || row[`wind${id}`] > 25);
-    const condition = stopped.length ? `Порог: T${stopped.join(", T")}` : "В пределах";
+    const stopped = windLimitsApplied() ? [1, 2].filter(id => row[`wind${id}`] < 3 || row[`wind${id}`] > 25) : [];
+    const condition = !windLimitsApplied() ? "Порог не применён" : stopped.length ? `Порог: T${stopped.join(", T")}` : "В пределах";
     return `<tr class="${hour === state.hour ? "selected-row" : ""}"><td><button type="button" class="row-hour" data-hour="${hour}" aria-label="Выбрать ${timeLabel(row.time)} UTC">${timeLabel(row.time)}</button></td><td>${format(row.power1)}</td><td>${format(row.power2)}</td><td>${format(row.wind1, 1)}</td><td>${format(row.wind2, 1)}</td><td class="${stopped.length ? "constraint-off" : ""}">${condition}</td></tr>`;
   }).join("");
   $("toggle-table").textContent = state.expanded ? "Свернуть таблицу ↑" : `Показать все ${state.horizon} ${state.horizon === 24 ? "часа" : "часов"} ↓`;
@@ -164,6 +272,7 @@ function render() {
 }
 
 function selectHour(index, announce = false) {
+  if (!state.rows.length) return;
   const next = clamp(Math.round(index), 0, state.rows.length - 1);
   if (next === state.hour) return;
   state.hour = next;
@@ -179,15 +288,15 @@ function stopPlayback() {
 }
 
 function chartHour(event) {
+  if (!state.rows.length) return;
   const box = event.currentTarget.getBoundingClientRect();
   const proportion = ((event.clientX - box.left) / box.width * 900 - 43) / (900 - 43 - 14);
   selectHour(proportion * (state.horizon - 1));
 }
 
 document.querySelectorAll("[data-horizon]").forEach(button => button.addEventListener("click", () => {
-  stopPlayback();
   state.horizon = Number(button.dataset.horizon);
-  if (buildRows()) render();
+  loadSelection();
 }));
 document.querySelectorAll("[data-layer]").forEach(button => button.addEventListener("click", () => {
   state.layer = button.dataset.layer;
@@ -201,11 +310,13 @@ document.querySelectorAll("[data-select]").forEach(button => button.addEventList
   state.turbine = button.dataset.select;
   render();
 }));
-$("date").addEventListener("change", () => { stopPlayback(); state.hour = 0; if (buildRows()) render(); });
+$("source").addEventListener("change", () => { state.hour = 0; loadSelection(); });
+$("date").addEventListener("change", () => { state.hour = 0; loadSelection(); });
 $("time-range").addEventListener("input", event => selectHour(Number(event.target.value), true));
 $("previous-hour").addEventListener("click", () => { stopPlayback(); selectHour(state.hour - 1, true); });
 $("next-hour").addEventListener("click", () => { stopPlayback(); selectHour(state.hour + 1, true); });
 $("play-toggle").addEventListener("click", () => {
+  if (!state.rows.length) return;
   if (state.timer) { stopPlayback(); return; }
   if (state.hour === state.horizon - 1) selectHour(0);
   $("play-toggle").textContent = "Ⅱ";
@@ -223,18 +334,16 @@ $("rows").addEventListener("click", event => {
   const button = event.target.closest("[data-hour]");
   if (button) selectHour(Number(button.dataset.hour), true);
 });
-$("toggle-table").addEventListener("click", () => { state.expanded = !state.expanded; drawTable(); });
+$("toggle-table").addEventListener("click", () => { if (!state.rows.length) return; state.expanded = !state.expanded; drawTable(); });
 $("download").addEventListener("click", () => {
-  const origin = state.rows[0].time;
-  const lines = ["mode,forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms"];
-  state.rows.forEach(row => [1, 2].forEach(id => lines.push(`synthetic-demo,${origin},${row.time},turbine_${id},${row[`power${id}`].toFixed(6)},${row[`wind${id}`].toFixed(3)}`)));
-  const url = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8" }));
+  if (!state.csv) return;
+  const url = URL.createObjectURL(new Blob([state.csv], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `DEMO_forecast_${$("date").value}_${state.horizon}h.csv`;
+  link.download = `${state.stem}.csv`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  $("status-text").textContent = "Демонстрационный CSV загружен";
+  $("status-text").textContent = "CSV загружен";
 });
 
-if (buildRows()) render();
+loadSelection();

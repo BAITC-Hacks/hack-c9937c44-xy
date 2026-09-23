@@ -360,7 +360,7 @@ h1,h2,h3 {
   font-weight:650
 }
 
-.field input {
+.field input,.field select {
   height:36px;
   min-width:160px;
   border:1px solid var(--line);
@@ -370,6 +370,8 @@ h1,h2,h3 {
   padding:0 10px;
   font-size:11px
 }
+
+button:disabled { opacity:.5; cursor:not-allowed }
 
 .segmented {
   display:inline-flex;
@@ -1526,7 +1528,7 @@ footer strong {
     gap:12px
   }
 
-  .field input {
+  .field input,.field select {
     min-width:0;
     width:100%
   }

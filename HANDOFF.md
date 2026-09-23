@@ -23,7 +23,7 @@ The initial prototype is pushed. Start with [README.md](README.md) for the archi
 - `validator_agent.py`: normalized power bounds and wind cut-in/cut-out checks.
 - `main_simulation.py`: daily February simulation, audit sidecars, checkpoints and cumulative `submission.csv`. `main.py` remains a compatible entrypoint.
 - `evaluate.py`: teammate's scoring module, integrated with the completed-run manifest; compares the model with persistence and a simple power curve using later observed SCADA.
-- `preview/`: standalone map-led UI prototype with two selectable turbine markers, power/wind layer switch, synchronized hourly timeline, charts, and CSV export. Its values are synthetic; the map is a schematic and it does not read model output or call the API.
+- `preview/`: map-led UI with two selectable turbine markers, power/wind layer switch, synchronized hourly timeline, charts, and CSV export. It offers a browser-only synthetic demo and reads daily CSV/JSON artifacts from `outputs/demo/` or `outputs/backtest/`. The map is a schematic; the UI does not call the weather API.
 - `tests/`: CPU tests for chronology, data gaps, the model, validation, and simulation.
 
 ## Start the UI and offline example
@@ -35,10 +35,10 @@ python -m venv .venv
 source .venv/bin/activate                 # Linux / WSL2
 python -m pip install -r requirements-demo.txt
 python main_simulation.py --demo
-python -m http.server 8765 --directory preview
+python -m http.server 8765 --bind 127.0.0.1
 ```
 
-Open `http://127.0.0.1:8765`. The offline simulation writes clearly labelled synthetic files under `outputs/demo/`; they are not competition forecasts.
+Open `http://127.0.0.1:8765/preview/`. Start the server in the repository root so the preview can access `outputs/`. The offline simulation writes clearly labelled synthetic files under `outputs/demo/`; they are not competition forecasts. Select “Python демо” to inspect them, or “Прогноз модели” after a backtest run. Missing files produce a visible empty state.
 
 ## Important before running the real model
 
@@ -66,4 +66,4 @@ Latest local validation: 41 CPU tests passed, and the February offline demo comp
 2. Reproduce the CPU checks with `python -m unittest discover -s tests -v`, then run the GPU/cuDF smoke check and one-day real forecast.
 3. Build a chronological rolling-origin evaluation and persistence/power-curve baselines; report MAE/RMSE per turbine and lead time.
 4. Decide how missing February SCADA should be handled for the competition; never fill it with future observations or synthetic data.
-5. Connect actual CSV/JSON forecast results to `preview/` only after the pipeline has been independently validated.
+5. Review the CSV/JSON model forecast in `preview/` after a backtest run; measured February quality remains unavailable until observed power is provided.

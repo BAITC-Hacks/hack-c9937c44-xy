@@ -1,8 +1,6 @@
 # Complete WPF Python source
 
-Commit: `bbdbb61303b05f42366b70214a6a0d4622948c6b`
-
-See README.md and HANDOFF.md for environment setup, weather availability assumptions, and the missing February SCADA limitation.
+Snapshot of the working tree. See README.md and HANDOFF.md for setup and data limitations.
 
 ## data_agent.py
 
@@ -888,8 +886,10 @@ def validate_power(
     predicted_power: np.ndarray,
     wind_speed_ms: np.ndarray,
     limits: PhysicsLimits | None = None,
+    *,
+    apply_wind_limits: bool = True,
 ) -> np.ndarray:
-    """Return a copy bounded to [0, 1], with shutdowns outside [3, 25] m/s.
+    """Bound power to [0, 1]; apply shutdowns only for comparable hub-height wind.
 
     Arrays must have the same nonempty [hours, turbines] shape. Invalid numeric
     inputs fail explicitly: NaN forecasts must never become plausible output.
@@ -905,7 +905,8 @@ def validate_power(
     if (wind < 0).any():
         raise ValueError("Wind speed cannot be negative.")
     result = np.clip(power, 0.0, 1.0)
-    result[(wind < limits.cut_in_ms) | (wind > limits.cut_out_ms)] = 0.0
+    if apply_wind_limits:
+        result[(wind < limits.cut_in_ms) | (wind > limits.cut_out_ms)] = 0.0
     return result.astype(np.float32)
 
 
@@ -1161,11 +1162,11 @@ def _atomic_text(path: Path, text: str) -> None:
 
 def write_daily_submission(
     output_dir: Path, origin: pd.Timestamp, power: np.ndarray,
-    wind: np.ndarray, audit: dict,
+    wind: np.ndarray, audit: dict, *, apply_wind_limits: bool = True,
 ) -> Path:
     """Write one complete horizon per origin, retaining March hours on February 28."""
     origin = utc_timestamp(origin)
-    bounded = validate_power(power, wind)
+    bounded = validate_power(power, wind, apply_wind_limits=apply_wind_limits)
     if bounded.shape[1] != len(TURBINES):
         raise ValueError("Submission requires two turbines.")
     valid_times = hour_index(origin, bounded.shape[0])
@@ -1190,9 +1191,11 @@ def write_daily_submission(
         **audit, "forecast_origin": origin.isoformat(), "horizon_hours": len(valid_times),
         "last_valid_time": valid_times[-1].isoformat(), "rows": len(rows),
         "physical_validation": {
-            "power_range": [0, 1], "cut_in_ms": 3, "cut_out_ms": 25,
-            "strict_wind_thresholds": True,
-            "forced_zero_count": int(((wind < 3) | (wind > 25)).sum()),
+            "power_range": [0, 1], "cut_in_ms": 3 if apply_wind_limits else None,
+            "cut_out_ms": 25 if apply_wind_limits else None,
+            "wind_limits_applied": apply_wind_limits,
+            "strict_wind_thresholds": apply_wind_limits,
+            "forced_zero_count": int(((wind < 3) | (wind > 25)).sum()) if apply_wind_limits else 0,
         },
     }
     # Each artifact is atomically replaced; the sidecar contains its own complete provenance.
@@ -1353,11 +1356,11 @@ def run(args: argparse.Namespace) -> None:
                         frozen_state = (histories, batch, context, model, checkpoint)
                 weather, wind, forecast_audit = aligned_weather(forecasts_at(origin), origin, args.horizon)
                 bound = max(pd.Timestamp(item["available_at_upper_bound"]) for item in forecast_audit)
-                power = validate_power(predict(model, ForecastData(
+                power = predict(model, ForecastData(
                     history=context, weather=weather, current_date=origin.to_pydatetime(),
                     available_at_upper_bound=[bound.to_pydatetime()] * args.horizon,
                     context_origin=context_origin.to_pydatetime(),
-                )), wind)
+                ))
                 audit = {
                     "mode": mode, "trained_model": True,
                     "history_policy": args.history_policy,
@@ -1372,6 +1375,7 @@ def run(args: argparse.Namespace) -> None:
                     ),
                     "latest_observation": [history["power"].dropna().index.max().isoformat() for history in histories],
                     "weather_source": "Open-Meteo previous-runs forecast API / gfs_global",
+                    "wind_height_m": 10,
                     "publication_lag_hours_assumption": args.publication_lag_hours,
                     "weather_availability_bounds_checked": True, "inference_weather": forecast_audit,
                     "training": {
@@ -1386,7 +1390,7 @@ def run(args: argparse.Namespace) -> None:
                 }
                 if args.history_policy == "expanding":
                     del model
-            path = write_daily_submission(output_dir, origin, power, wind, audit)
+            path = write_daily_submission(output_dir, origin, power, wind, audit, apply_wind_limits=args.demo)
             daily_paths.append(path)
             manifest["submission_rows"] = write_cumulative_submission(output_dir / "submission.csv", daily_paths)
             manifest["completed_origins"].append(origin.isoformat())

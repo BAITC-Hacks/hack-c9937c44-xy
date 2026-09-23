@@ -13,6 +13,13 @@ class PhysicsValidatorTests(unittest.TestCase):
         np.testing.assert_allclose(result, [[0, 1], [0, 0], [0.4, 0.8]])
         self.assertEqual(power[0, 0], -0.2, "Validation must not mutate model output.")
 
+    def test_10m_wind_does_not_force_hub_height_shutdown(self):
+        power = np.array([[0.7, 1.2]])
+        wind = np.array([[2.0, 26.0]])
+        np.testing.assert_allclose(
+            validate_power(power, wind, apply_wind_limits=False), [[0.7, 1.0]],
+        )
+
     def test_nonfinite_or_negative_wind_fails(self):
         for power, wind in [
             ([[np.nan]], [[8]]), ([[np.inf]], [[8]]),

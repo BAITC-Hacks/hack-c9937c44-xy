@@ -269,6 +269,8 @@ class HistoryPolicyIntegrationTests(unittest.TestCase):
             self.assertEqual(audit["observation_cutoff_exclusive"], self.first_origin.isoformat())
             self.assertEqual(audit["context_age_hours"], 48)
             self.assertEqual(audit["training"]["latest_target_time"], "2026-01-31T23:00:00+00:00")
+            self.assertFalse(audit["physical_validation"]["wind_limits_applied"])
+            self.assertEqual(audit["physical_validation"]["forced_zero_count"], 0)
 
     def test_expanding_requires_new_observed_scada(self):
         with tempfile.TemporaryDirectory() as directory:

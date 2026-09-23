@@ -22,8 +22,10 @@ def validate_power(
     predicted_power: np.ndarray,
     wind_speed_ms: np.ndarray,
     limits: PhysicsLimits | None = None,
+    *,
+    apply_wind_limits: bool = True,
 ) -> np.ndarray:
-    """Return a copy bounded to [0, 1], with shutdowns outside [3, 25] m/s.
+    """Bound power to [0, 1]; apply shutdowns only for comparable hub-height wind.
 
     Arrays must have the same nonempty [hours, turbines] shape. Invalid numeric
     inputs fail explicitly: NaN forecasts must never become plausible output.
@@ -39,7 +41,8 @@ def validate_power(
     if (wind < 0).any():
         raise ValueError("Wind speed cannot be negative.")
     result = np.clip(power, 0.0, 1.0)
-    result[(wind < limits.cut_in_ms) | (wind > limits.cut_out_ms)] = 0.0
+    if apply_wind_limits:
+        result[(wind < limits.cut_in_ms) | (wind > limits.cut_out_ms)] = 0.0
     return result.astype(np.float32)
 
 
