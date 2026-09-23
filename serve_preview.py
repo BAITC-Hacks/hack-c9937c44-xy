@@ -89,9 +89,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         path = unquote(urlsplit(self.path).path)
+        if path == "/healthz":
+            self.json_response(200, {"status": "ok"})
+            return None
         if path == "/":
             self.send_response(302)
-            self.send_header("Location", "/preview/")
+            self.send_header("Location", "/preview/?run=rolling-january-gpu")
             self.end_headers()
             return None
         if path == "/preview/":
@@ -138,7 +141,7 @@ def main():
     parser.add_argument("--port", type=int, default=8767)
     args = parser.parse_args()
     server = HTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"ALEM WIND: http://127.0.0.1:{args.port}/preview/", flush=True)
+    print(f"ALEM WIND: http://127.0.0.1:{args.port}/", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

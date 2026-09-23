@@ -7,7 +7,7 @@
 HackAlem AI, энергетический кейс: почасовой прогноз нормализованной мощности двух ветровых турбин на 24–48 часов. Есть работающий Python-пайплайн, исторический CPU-прогноз, оценка относительно baselines и браузерный просмотр результатов. Выполнены rolling backtest CPU/GPU, сравнение с baselines и реальная проверка CUDA/cuDF/cuML. Следующий этап — подтвердить метаданные и расширить оценку качества.
 
 - Репозиторий: https://github.com/BAITC-Hacks/hack-c9937c44-xy
-- Рабочая ветка: `codex/initial-wind-forecast`.
+- Основная ветка для проверки: `main`.
 - Локальная копия на исходном Mac: `/Users/eliasansariy/Documents/Codex/2026-09-23/co/work/alem-wind`.
 - Переносимый архив: `ALEM-WIND-IDE-HANDOFF.zip`. Распакуйте и откройте папку `alem-wind` в IDE.
 - Архив содержит исходники, тесты, оба CSV в `data/raw/`, кеш погоды, январский прогноз с checkpoint и оценкой, февральское синтетическое демо. `.git`, `.venv`, секреты и старые вложенные архивы не включены.
@@ -16,24 +16,25 @@ HackAlem AI, энергетический кейс: почасовой прог�
 Для работы с Git лучше клонировать ветку и скопировать из архива только `data/` и `outputs/`:
 
 ```bash
-git clone -b codex/initial-wind-forecast --single-branch https://github.com/BAITC-Hacks/hack-c9937c44-xy.git
+git clone -b main --single-branch https://github.com/BAITC-Hacks/hack-c9937c44-xy.git
 cd hack-c9937c44-xy
 ```
 
 В ветке работали несколько участников. Перед изменениями проверьте `git status`, затем актуальность удалённой ветки; сохраняйте чужие изменения. Полные исходные SCADA остаются вне Git. Погода, пять зафиксированных запусков с checkpoints и доказательства в `outputs/evidence/` опубликованы; новые эксперименты по-прежнему игнорируются.
 
-## Запустить сразу
+## Запустить сразу на localhost без Docker
 
-Все команды ниже выполняются из корня проекта. Проверено на Python 3.11, macOS arm64, CPU.
+Основной путь для проверяющего — обычный Python 3.11. Docker опционален; NVIDIA/CUDA, PyTorch и аккаунт хостинга для интерфейса, экономики и PDF/ZIP не нужны. Все команды выполняются из корня проекта. Команды для macOS/Linux и Windows находятся в начале [README](README.md).
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m unittest discover -s tests -q
+python -m pip install -r requirements-reports.txt
+python main_simulation.py --demo
+python serve_preview.py
 ```
 
-В Windows создайте окружение через `py -3.11 -m venv .venv`, активируйте `.venv\Scripts\Activate.ps1`. CUDA/cuDF/cuML проверены в Linux на L4; восстановление окружения описано в README. Для просмотра уже готовых файлов достаточно встроенного HTTP-сервера Python; PyTorch нужен для обучения и полного набора тестов.
+Откройте http://localhost:8767/; сервер сразу выбирает сохранённые GPU-прогнозы. Терминал должен оставаться открытым. В Windows можно вызывать `.\.venv\Scripts\python.exe` напрямую, без активации окружения; см. README. Для обучения и полного набора тестов отдельно установите `requirements.txt`, для тестов опционального веб-сервера — `requirements-web.txt`. CUDA/cuDF/cuML проверены в Linux на L4; восстановление окружения описано в README.
 
 Проверенные локальные версии: NumPy 2.4.6, pandas 2.3.3, requests 2.34.2, PyTorch 2.14.0, tzdata 2026.4. `requirements.txt` задаёт диапазоны, а не lockfile; побитовое совпадение на другом устройстве не гарантируется.
 

@@ -6,9 +6,51 @@ HackAlem AI · трек 01 «Энергетика» · кейс Самрук-К�
 
 Стартовый прототип: три программных агента готовят данные, обучают совместную модель двух турбин и проверяют физические ограничения. Оркестратор воспроизводит ежедневные прогнозы за 1–28 февраля 2026 года. Здесь есть Python-пайплайн, тесты и интерактивный макет интерфейса. Это первый инженерный baseline; качество прогноза на скрытом феврале ещё не измерено.
 
-## Онлайн-MVP и Docker
+## Быстрый старт на localhost — без Docker
 
-[Развернуть бесплатно в Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FBAITC-Hacks%2Fhack-c9937c44-xy%2Ftree%2Fcodex%2Finitial-wind-forecast) — конфигурация `render.yaml` выбирает Docker, **Free** и Франкфурт. Репозиторий приватный: Render нужен доступ к этому репозиторию через GitHub App; организация может потребовать подтверждение администратора. После развёртывания Render выдаёт HTTPS-адрес `*.onrender.com`; свой домен не нужен. Последующие push в `codex/initial-wind-forecast` запускают обновление сервиса.
+Основной способ проверки MVP — обычный Python **3.11**. Docker, NVIDIA/CUDA, PyTorch, Flask и аккаунт хостинга для просмотра готовых прогнозов, расчёта экономики и создания отчётов не нужны.
+
+Получите ветку `main` (для приватного репозитория нужен доступ GitHub):
+
+```bash
+git clone --branch main --single-branch https://github.com/BAITC-Hacks/hack-c9937c44-xy.git
+cd hack-c9937c44-xy
+```
+
+**macOS / Linux:**
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -r requirements-reports.txt
+.venv/bin/python main_simulation.py --demo
+.venv/bin/python serve_preview.py
+```
+
+**Windows / PowerShell**, из той же папки проекта:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-reports.txt
+.\.venv\Scripts\python.exe main_simulation.py --demo
+.\.venv\Scripts\python.exe serve_preview.py
+```
+
+Откройте **http://localhost:8767/** и оставьте терминал работающим. Главная страница сразу выбирает сохранённый GPU-прогноз за январь. Команда `--demo` подготавливает дополнительный источник «Python демо» без обучения и сетевых запросов. Для остановки сервера нажмите `Ctrl+C`; если порт занят, добавьте `--port 8768` к команде запуска сервера.
+
+Проверьте выбор выпуска и турбины, измените тариф в «Экономике», затем нажмите «Сформировать отчёт» и скачайте PDF/ZIP. Отчёты остаются в `outputs/reports/` после остановки сервера. Это просмотр проверенных результатов; повторное обучение модели описано отдельно ниже.
+
+Автоматическая проверка из второго терминала (на Windows замените `.venv/bin/python` на `.\.venv\Scripts\python.exe`):
+
+```bash
+.venv/bin/python verify_results.py
+.venv/bin/python tests/smoke_web.py http://localhost:8767 . outputs/local-check.json
+```
+
+Она проверяет интерфейс, шесть источников, экономику, PDF/ZIP и контрольные суммы. Не запускайте вместо `serve_preview.py` обычный `python -m http.server`: у него нет API экономики и отчётов.
+
+## Опционально: Docker и онлайн-развёртывание
+
+[Развернуть бесплатно в Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FBAITC-Hacks%2Fhack-c9937c44-xy%2Ftree%2Fmain) — конфигурация `render.yaml` выбирает Docker, **Free** и Франкфурт. Репозиторий приватный: Render нужен доступ к этому репозиторию через GitHub App; организация может потребовать подтверждение администратора. Сервис пока не опубликован. После развёртывания Render выдаёт HTTPS-адрес `*.onrender.com`; свой домен не нужен. Последующие push в `main` запускают обновление сервиса.
 
 Сервис открывает сохранённые GPU-прогнозы, считает Lost Energy Revenue и формирует PDF/HTML/ZIP. `web_app.py` работает через Gunicorn с одним процессом; тяжёлые отчёты формируются по одному. GPU на веб-сервере не требуется: новое обучение выполняется отдельно. Исходные SCADA, `.env`, `.git` и локальная среда исключены из Docker-образа; HTTP выдаёт только разрешённые файлы интерфейса и результатов.
 
