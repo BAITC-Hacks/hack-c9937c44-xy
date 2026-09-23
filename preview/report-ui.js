@@ -5,13 +5,29 @@
   const status = document.getElementById("report-status");
   let generation = 0;
 
+  function clearReport() {
+    document.getElementById("report-result").hidden = true;
+    document.getElementById("report-outline").hidden = false;
+    document.getElementById("report-figures").replaceChildren();
+    ["report-html", "report-pdf", "report-bundle"].forEach(id => $(id).removeAttribute("href"));
+    $("report-validation").textContent = "";
+  }
+
+  function serviceHelp(message, usePagePort = true) {
+    const { hostname, port: pagePort } = window.location;
+    const local = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(hostname);
+    const port = usePagePort && local && /^\d+$/.test(pagePort) && Number(pagePort) >= 1024 && Number(pagePort) <= 65535
+      ? Number(pagePort) : 8767;
+    return `${message} Повторите попытку. Если ошибка сохраняется, в папке проекта запустите python serve_preview.py --port ${port}, `
+      + `затем откройте http://127.0.0.1:${port}/preview/#reports. `
+      + "Если этот порт занят обычным HTTP-сервером, остановите его перед запуском сервиса отчётов.";
+  }
+
   function reset() {
     generation += 1;
     button.disabled = !state.rows.length;
     button.textContent = "Сформировать отчёт ↗";
-    document.getElementById("report-result").hidden = true;
-    document.getElementById("report-outline").hidden = false;
-    document.getElementById("report-figures").replaceChildren();
+    clearReport();
     status.textContent = state.rows.length
       ? "Графики ошибок и метрики добавляются только при наличии фактических измерений."
       : "Сначала загрузите доступный прогноз.";
@@ -29,19 +45,31 @@
   button.addEventListener("click", async () => {
     if (!state.rows.length) return;
     const request = ++generation;
+    clearReport();
     button.disabled = true;
     button.textContent = "Формируем рисунки…";
     status.textContent = "Подготовка PDF, векторных рисунков и исходных данных…";
     try {
-      const response = await fetch("/api/report", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: $("source").value, date: $("date").value,
-          horizon: state.horizon, rows: $("source").value === "synthetic" ? state.rows : undefined }),
-      });
-      if (response.status === 501 || !(response.headers.get("content-type") || "").includes("application/json")) {
-        throw new Error("Сервис отчётов недоступен. Запустите python serve_preview.py --port 8767 и откройте http://127.0.0.1:8767/preview/.");
+      let response;
+      try {
+        response = await fetch("/api/report", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: $("source").value, date: $("date").value,
+            horizon: state.horizon, rows: $("source").value === "synthetic" ? state.rows : undefined }),
+        });
+      } catch {
+        throw new Error(serviceHelp("Не удалось подключиться к сервису отчётов."));
       }
-      const result = await response.json();
+      if (response.status === 501 || !(response.headers.get("content-type") || "").includes("application/json")) {
+        throw new Error(serviceHelp("По этому адресу сервис отчётов недоступен.", false));
+      }
+      let result;
+      try {
+        result = await response.json();
+      } catch (error) {
+        if (error instanceof TypeError) throw new Error(serviceHelp("Соединение прервалось при получении отчёта."));
+        throw new Error("Сервис вернул некорректный ответ. Повторите попытку или проверьте журнал сервера.");
+      }
       if (!response.ok) throw new Error(result.error || "Не удалось сформировать отчёт.");
       if (request !== generation) return;
       const base = result.base_url, report = result.report;
@@ -77,7 +105,10 @@
       $("report-result").hidden = false;
       status.textContent = `${report.mode === "synthetic-demo" ? "Демонстрационный" : "Научный"} отчёт готов · ${report.horizon_hours} ч · ${report.figures.length} ${report.figures.length === 4 ? "рисунка" : "рисунков"} · SHA-256: ${report.source_sha256.slice(0, 12)}`;
     } catch (error) {
-      if (request === generation) status.textContent = error.message;
+      if (request === generation) {
+        clearReport();
+        status.textContent = error.message;
+      }
     } finally {
       if (request === generation) { button.disabled = !state.rows.length; button.textContent = "Сформировать заново ↗"; }
     }
