@@ -10,6 +10,7 @@ import numpy as np
 
 from scientific_report import figures, forecast_csv, load_observations, make_report, statistics, validate_forecast
 from serve_preview import report_input
+from standards_profile import wind_standards_profile
 
 
 def fixture(demo=False, horizon=24):
@@ -24,6 +25,17 @@ def fixture(demo=False, horizon=24):
 
 
 class ReportTests(unittest.TestCase):
+    def test_standards_profile_is_for_wind_and_does_not_claim_conformity(self):
+        profile = wind_standards_profile()
+        self.assertEqual(profile["equipment"], "wind_turbine")
+        self.assertFalse(profile["conformity_claim"])
+        selected = {item["designation"] for item in profile["selected"]}
+        self.assertIn("ГОСТ 7.32-2017", selected)
+        self.assertIn("IEC 61400-12-1:2022 + COR1:2025", selected)
+        self.assertFalse(selected & {item["designation"] for item in profile["excluded"]})
+        profile["selected"].clear()
+        self.assertEqual(len(wind_standards_profile()["selected"]), 2)
+
     def test_rejects_duplicate_partial_mixed_and_nonfinite(self):
         for change in ("duplicate", "partial", "origin", "nan", "wind", "power", "naive"):
             with self.subTest(change=change):
@@ -109,15 +121,20 @@ class ReportTests(unittest.TestCase):
 
     def test_report_exports_real_vector_figures_and_verifiable_bundle(self):
         data = validate_forecast(*fixture(demo=True))
+        data.audit["conformity_claim"] = True  # An input audit cannot certify our report.
         with tempfile.TemporaryDirectory() as directory:
             report = make_report(data, Path(directory))
             metadata = json.loads((report / "metadata.json").read_text(encoding="utf-8"))
             self.assertEqual(len(metadata["figures"]), 4)
             self.assertEqual(metadata["n_observed"], 0)
             self.assertIsNone(metadata["statistics"][0]["mae_pu"])
+            self.assertFalse(metadata["standards_profile"]["conformity_claim"])
+            self.assertEqual(metadata["standards_file"], "standards.json")
+            self.assertEqual(json.loads((report / "standards.json").read_text(encoding="utf-8")), metadata["standards_profile"])
             self.assertTrue((report / "report.pdf").read_bytes().startswith(b"%PDF"))
             self.assertIn("<svg", (report / "trajectory.svg").read_text(encoding="utf-8"))
             self.assertIn("СИНТЕТИЧЕСКИЙ ПРИМЕР", (report / "report.html").read_text(encoding="utf-8"))
+            self.assertIn("Нормативная основа ВЭС", (report / "report.html").read_text(encoding="utf-8"))
             with zipfile.ZipFile(report / "report_bundle.zip") as archive:
                 for line in archive.read("SHA256SUMS.txt").decode().splitlines():
                     expected, name = line.split("  ", 1)

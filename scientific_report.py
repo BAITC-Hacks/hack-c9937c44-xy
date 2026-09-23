@@ -25,6 +25,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import AutoMinorLocator
 import numpy as np
 
+from standards_profile import wind_standards_profile
+
 IDS = ("turbine_1", "turbine_2")
 COLORS = ("#177565", "#35649a")
 FIELDS = ("forecast_origin", "valid_time", "turbine_id", "power_normalized", "wind_speed_ms")
@@ -276,7 +278,9 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
     if observed is not None:
         canonical += json.dumps(np.where(np.isfinite(observed), observed, -1).tolist())
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-    report_id = f"forecast_{forecast.origin:%Y%m%dT%H%MZ}_{len(forecast.times)}h_{digest[:12]}"
+    standards = wind_standards_profile()
+    report_digest = hashlib.sha256((canonical + json.dumps(standards, sort_keys=True, ensure_ascii=False)).encode("utf-8")).hexdigest()
+    report_id = f"forecast_{forecast.origin:%Y%m%dT%H%MZ}_{len(forecast.times)}h_{report_digest[:12]}"
     destination = output_root / report_id
     destination.mkdir(parents=True, exist_ok=True)
     observed_n = sum(row["n_observed"] for row in stats)
@@ -299,11 +303,13 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
     limits_applied = bounds.get("wind_limits_applied", forecast.demo)
     notes.append("Пороги 3/25 м/с применены источником прогноза." if limits_applied
                  else "Пороги 3/25 м/с не применены источником; ветер на 10 м не равен ветру на высоте ступицы.")
-    metadata = {"schema_version": 1, "report_id": report_id, "source_sha256": digest,
+    metadata = {"schema_version": 2, "report_id": report_id, "source_sha256": digest, "report_sha256": report_digest,
                 "generated_at": datetime.now(timezone.utc).isoformat(), "mode": forecast.audit["mode"],
                 "forecast_origin": forecast.origin.isoformat(), "horizon_hours": len(forecast.times),
                 "n_observed": observed_n, "statistics": stats, "methodology": notes, "audit": forecast.audit,
-                "references": [{"title": "NREL: Fundamentals of Wind Energy", "url": "https://www.nrel.gov/docs/fy23osti/84501.pdf"}],
+                "standards_profile": standards, "standards_file": "standards.json",
+                "references": [{"title": "NREL: Fundamentals of Wind Energy", "url": "https://www.nrel.gov/docs/fy23osti/84501.pdf"}]
+                              + [{"title": item["designation"], "url": item["source"]} for item in standards["selected"]],
                 "figures": [], "pdf": "report.pdf", "html": "report.html", "bundle": "report_bundle.zip"}
     provenance = [
         ("Выпуск прогноза", forecast.origin.strftime("%d.%m.%Y %H:%M UTC")),
@@ -363,14 +369,41 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
         method.text(.075, .045, "Аудит источника и машинные значения приложены в metadata.json и forecast.csv.", fontsize=9)
         pdf.savefig(method)
         plt.close(method)
+        normative = plt.figure(figsize=(11.7, 8.3))
+        normative.text(.075, .92, "Нормативная основа ВЭС", fontsize=18, weight="bold")
+        normative.text(.075, .87, standards["statement"], fontsize=10, color="#78591f")
+        y = .80
+        for item in standards["selected"]:
+            normative.text(.075, y, item["designation"], fontsize=12, weight="bold")
+            lines = textwrap.wrap(item["application"] + " " + item["implementation"], 114)
+            y -= .035
+            normative.text(.075, y, "\n".join(lines), fontsize=10, va="top", linespacing=1.5)
+            y -= .025 * len(lines) + .035
+        normative.text(.075, y, "Что требуется для дальнейшего применения", fontsize=12, weight="bold")
+        y -= .04
+        for item in standards["open_items"]:
+            lines = textwrap.wrap("• " + item, 114)
+            normative.text(.075, y, "\n".join(lines), fontsize=9, va="top", linespacing=1.4)
+            y -= .025 * len(lines) + .015
+        normative.text(.075, .075, "Области применения и ссылки проверены 23.09.2026. Перечень источников и статусы — в standards.json.", fontsize=8)
+        normative.text(.075, .04, "Объект: ветроустановки. Классы и обозначения паровых турбин к этим данным не применяются.", fontsize=8)
+        pdf.savefig(normative)
+        plt.close(normative)
     cells = "".join("<tr>" + "".join(f"<td>{html.escape(str(cell))}</td>" for cell in row) + "</tr>" for row in table_rows)
     provenance_html = "".join(f"<dt>{html.escape(str(k))}</dt><dd>{html.escape(str(v))}</dd>" for k, v in provenance)
+    standards_html = "".join(
+        f'<li><a href="{html.escape(item["source"], quote=True)}">{html.escape(item["designation"])}</a>: '
+        f'{html.escape(item["application"])} {html.escape(item["implementation"])}</li>'
+        for item in standards["selected"]
+    )
     document = f'''<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ALEM WIND — научный отчёт</title>
 <style>body{{font:15px/1.6 Arial,sans-serif;color:#172630;margin:40px auto;padding:0 24px;max-width:1100px}}h1{{font-size:30px}}.status{{color:#177565;font-weight:bold}}dl{{display:grid;grid-template-columns:240px 1fr;gap:8px}}dt{{font-weight:bold}}dd{{margin:0;overflow-wrap:anywhere}}table{{border-collapse:collapse;width:100%;font-size:12px}}td,th{{border:1px solid #bac4ca;padding:10px}}th{{background:#f0f3f4}}figure{{margin:40px 0}}svg{{width:100%;height:auto}}figcaption{{font-size:13px;color:#475963}}li{{margin:10px 0}}@media print{{@page{{size:A4 landscape;margin:14mm}}body{{margin:0;max-width:none}}figure{{break-before:page;break-inside:avoid}}a.download{{display:none}}}}</style>
 <h1>ALEM WIND / Научный отчёт</h1><p class="status">{status}</p><p><a class="download" href="report.pdf">PDF</a> · <a class="download" href="report_bundle.zip">Все файлы и графики</a></p><dl>{provenance_html}</dl>
 <table><thead><tr>{''.join(f'<th>{html.escape(c)}</th>' for c in columns)}</tr></thead><tbody>{cells}</tbody></table>
 <p>Фактических совпавших турбино-часов: {observed_n}. {'Точность не оценена.' if not observed_n else 'Метрики рассчитаны только по совпавшим значениям.'}</p>
 {''.join(svg_sections)}<h2>Методика и ограничения</h2><ol>{''.join(f'<li>{html.escape(n)}</li>' for n in notes)}</ol>
+<h2>Нормативная основа ВЭС</h2><p>{html.escape(standards['statement'])}</p><ul>{standards_html}</ul>
+<p>Для дальнейшего применения:</p><ol>{''.join(f'<li>{html.escape(n)}</li>' for n in standards['open_items'])}</ol>
 <p>Справочный материал: <a href="https://www.nrel.gov/docs/fy23osti/84501.pdf">NREL: Fundamentals of Wind Energy</a>.</p></html>'''
     (destination / "report.html").write_text(document, encoding="utf-8")
     (destination / "forecast.csv").write_text(payload, encoding="utf-8")
@@ -383,7 +416,8 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
                     if np.isfinite(observed[i, j]):
                         writer.writerow([time.isoformat(), turbine, observed[i, j]])
     (destination / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
-    names = ["report.pdf", "report.html", "forecast.csv", "metadata.json"]
+    (destination / "standards.json").write_text(json.dumps(standards, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+    names = ["report.pdf", "report.html", "forecast.csv", "metadata.json", "standards.json"]
     names += [figure[extension] for figure in metadata["figures"] for extension in ("svg", "png")]
     if observed is not None:
         names.append("observations.csv")

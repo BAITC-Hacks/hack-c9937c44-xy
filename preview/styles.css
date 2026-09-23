@@ -1766,6 +1766,11 @@ footer strong {
 .figure-exports { display:flex; gap:16px; padding:0 18px 18px }
 .figure-exports a { color:#176d5e; font-size:11px; font-weight:650 }
 .report-footnote { color:var(--muted); font-size:10px; line-height:1.7; margin-top:20px }
+.report-standards { border:1px solid #d5ded8; border-radius:6px; margin:0 0 20px; font-size:12px; line-height:1.7 }
+.report-standards summary { padding:14px 16px; cursor:pointer; color:#245e4e; font-weight:650 }
+.report-standards>div { padding:0 16px 14px }
+.report-standards a { color:#176d5e; font-weight:650 }
+.standards-status { padding:12px; background:#faf7ed; border-radius:4px; color:#6c5b2f }
 @media (max-width:1150px) {
   .report-outline { grid-template-columns:1fr 1fr }
   .report-brief { align-items:start; flex-direction:column; gap:12px }

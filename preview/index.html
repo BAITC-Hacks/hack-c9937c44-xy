@@ -45,13 +45,18 @@
       <section class="scientific-reports" id="reports" aria-labelledby="reports-title">
         <div class="report-heading"><div><span class="eyebrow">ИССЛЕДОВАНИЕ / ДОКУМЕНТАЦИЯ</span><h2 id="reports-title">Научный отчёт</h2><p>Воспроизводимые графики, методика и происхождение каждого расчёта</p></div><span class="report-format">PDF · SVG · PNG 300 dpi</span></div>
         <div class="report-brief"><div><strong>Две турбины. Один выпуск прогноза.</strong><p>Отчёт использует выбранные источник, дату и горизонт. Сохраняет почасовые значения, аудит и контрольные суммы исходных данных.</p></div><button type="button" class="report-generate" id="generate-report">Сформировать отчёт <span aria-hidden="true">↗</span></button></div>
+        <details class="report-standards"><summary>Нормативная основа ВЭС · область применения и статус</summary><div>
+          <p><a href="https://protect.gost.ru/gost/details/7d280e43-7036-4a69-8e6e-d15867028343" target="_blank" rel="noopener">ГОСТ 7.32-2017</a> выбран для структуры и оформления отчёта о НИР. Полная вёрстка, реквизиты и нормоконтроль такого отчёта ещё не реализованы.</p>
+          <p><a href="https://webstore.iec.ch/en/publication/68499" target="_blank" rel="noopener">IEC 61400-12-1:2022 + COR1:2025</a> выбран как ориентир для измерения энергетических характеристик ВЭУ. Прогноз P(v) и MAE/RMSE не заменяют испытания и оценку неопределённости.</p>
+          <p class="standards-status">Текущий документ — аналитический отчёт о прогнозе. Соответствие стандартам не установлено; применяемая в Казахстане редакция стандарта испытаний требует подтверждения. Статусы и ссылки сохраняются в отчёте.</p>
+        </div></details>
         <div class="report-outline" id="report-outline"><article><span>01 / ТРАЕКТОРИЯ</span><h3>Мощность и ветер</h3><p>Почасовые кривые с единой временной осью UTC</p></article><article><span>02 / РАБОЧИЕ ТОЧКИ</span><h3>Зависимость P(v)</h3><p>Прогнозная мощность в зависимости от скорости ветра</p></article><article><span>03 / ОБЕСПЕЧЕННОСТЬ</span><h3>Распределение мощности</h3><p>Доля часов с мощностью не ниже заданного уровня</p></article><article><span>04 / ДИНАМИКА</span><h3>Часовые изменения</h3><p>Интенсивность роста и снижения мощности, p.u./ч</p></article></div>
         <p class="report-status" id="report-status" role="status" aria-live="polite">Графики ошибок и метрики добавляются только при наличии фактических измерений.</p>
         <div id="report-result" hidden>
           <div class="report-downloads"><a id="report-html" target="_blank" rel="noopener">Открыть полный отчёт ↗</a><a id="report-pdf" download>Скачать PDF ↓</a><a id="report-bundle" download>Все графики и данные ↓</a></div>
           <p class="report-validation" id="report-validation"></p>
           <div class="report-figures" id="report-figures"></div>
-          <p class="report-footnote">Каждый рисунок доступен в SVG и PNG 300 dpi. Архив содержит PDF, автономный HTML, данные CSV, методику, аудит JSON и SHA-256.</p>
+          <p class="report-footnote">Каждый рисунок доступен в SVG и PNG 300 dpi. Архив содержит PDF, автономный HTML, данные CSV, методику, аудит, нормативную справку и SHA-256.</p>
         </div>
       </section>
       <footer><strong>ALEM WIND</strong><span>HackAlem AI · Энергетика</span><span id="footer-status">Демонстрационный интерфейс · сентябрь 2026</span></footer>

@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HANDOFF = ROOT / "handoff"
 MODULES = ("data_agent.py", "model_agent.py", "validator_agent.py", "main_simulation.py",
-           "scientific_report.py", "serve_preview.py")
+           "scientific_report.py", "serve_preview.py", "standards_profile.py")
 
 
 def main() -> None:
