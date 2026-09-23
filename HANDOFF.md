@@ -1,8 +1,16 @@
 # Handoff: ALEM WIND
 
-**GitHub:** `BAITC-Hacks/hack-c9937c44-xy`  
-**Branch to check out:** `codex/initial-wind-forecast`  
+**GitHub:** `BAITC-Hacks/hack-c9937c44-xy`
+
+**Branch to check out:** `codex/initial-wind-forecast`
+
 **Current baseline commit:** `5806523`
+
+From the IDE terminal, clone this branch directly:
+
+```bash
+git clone -b codex/initial-wind-forecast --single-branch https://github.com/BAITC-Hacks/hack-c9937c44-xy.git
+```
 
 The initial prototype is pushed. Start with [README.md](README.md) for the architecture, setup, backtest rules and known assumptions.
 
