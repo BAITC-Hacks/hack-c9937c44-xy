@@ -1,69 +1,155 @@
-# Handoff: ALEM WIND
+# ALEM WIND — передача разработки в другой IDE
 
-**GitHub:** `BAITC-Hacks/hack-c9937c44-xy`
+Обновлено: 23 сентября 2026. Версия исходников: `a463713` (включает новую панель с картой). Python-пайплайн с январским экспериментом не менялся после `d8609e7`.
 
-**Branch to check out:** `codex/initial-wind-forecast`
+## Проект и текущая задача
 
-**Initial baseline commit:** `5806523`; check out the latest branch tip for `main_simulation.py` and the cumulative submission.
+HackAlem AI, энергетический кейс: почасовой прогноз нормализованной мощности двух ветровых турбин на 24–48 часов. Есть работающий Python-пайплайн, исторический CPU-прогноз, оценка относительно baselines и браузерный просмотр результатов. Следующий этап — улучшить проверку качества и сам прогноз, затем проверить NVIDIA-окружение.
 
-The repository also includes a portable source bundle at `handoff/wpf-ide-handoff.zip` and a four-module code listing at `handoff/COMPLETE_CODE.md`.
+- Репозиторий: https://github.com/BAITC-Hacks/hack-c9937c44-xy
+- Рабочая ветка: `codex/initial-wind-forecast`.
+- Локальная копия на исходном Mac: `/Users/eliasansariy/Documents/Codex/2026-09-23/co/work/alem-wind`.
+- Переносимый архив: `ALEM-WIND-IDE-HANDOFF.zip`. Распакуйте и откройте папку `alem-wind` в IDE.
+- Архив содержит исходники, тесты, оба CSV в `data/raw/`, кеш погоды, январский прогноз с checkpoint и оценкой, февральское синтетическое демо. `.git`, `.venv`, секреты и старые вложенные архивы не включены.
+- В GitHub есть дополнительные снимки `handoff/COMPLETE_CODE.md` и `handoff/wpf-ide-handoff.zip`. Для этой передачи используйте новый архив: он также содержит локальные данные и результаты проверки.
 
-From the IDE terminal, clone this branch directly:
+Для работы с Git лучше клонировать ветку и скопировать из архива только `data/` и `outputs/`:
 
 ```bash
 git clone -b codex/initial-wind-forecast --single-branch https://github.com/BAITC-Hacks/hack-c9937c44-xy.git
+cd hack-c9937c44-xy
 ```
 
-The initial prototype is pushed. Start with [README.md](README.md) for the architecture, setup, backtest rules and known assumptions.
+В ветке работали несколько участников. Перед изменениями проверьте `git status`, затем актуальность удалённой ветки; сохраняйте чужие изменения. Данные и веса остаются локальными и исключены из Git.
 
-## What is in the repo
+## Запустить сразу
 
-- `data_agent.py`: 10-minute CSV aggregation, hourly features, and archived Open-Meteo fixed-lead forecasts with availability metadata.
-- `model_agent.py`: a joint two-turbine PyTorch encoder–decoder Transformer, CUDA/cuML feature normalization, and time-validated `train_model` / `predict` functions.
-- `validator_agent.py`: normalized power bounds and wind cut-in/cut-out checks.
-- `main_simulation.py`: daily February simulation, audit sidecars, checkpoints and cumulative `submission.csv`. `main.py` remains a compatible entrypoint.
-- `evaluate.py`: teammate's scoring module, integrated with the completed-run manifest; compares the model with persistence and a simple power curve using later observed SCADA.
-- `preview/`: map-led UI with two selectable turbine markers, power/wind layer switch, synchronized hourly timeline, charts, and CSV export. It offers a browser-only synthetic demo and reads daily CSV/JSON artifacts from `outputs/demo/` or `outputs/backtest/`. The map is a schematic; the UI does not call the weather API.
-- `tests/`: CPU tests for chronology, data gaps, the model, validation, and simulation.
-
-## Start the UI and offline example
-
-Python 3.11 or later:
+Все команды ниже выполняются из корня проекта. Проверено на Python 3.11, macOS arm64, CPU.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate                 # Linux / WSL2
-python -m pip install -r requirements-demo.txt
-python main_simulation.py --demo
-python -m http.server 8765 --bind 127.0.0.1
-```
-
-Open `http://127.0.0.1:8765/preview/`. Start the server in the repository root so the preview can access `outputs/`. The offline simulation writes clearly labelled synthetic files under `outputs/demo/`; they are not competition forecasts. Select “Python демо” to inspect them, or “Прогноз модели” after a backtest run. Missing files produce a visible empty state.
-
-## Important before running the real model
-
-Both provided CSVs actually end at **2026-01-31 23:50**. They contain no observed February SCADA, despite the date in their filenames. The default `--history-policy expanding` retrains daily and needs new SCADA readings; it fails when they are missing. Explicitly select `--history-policy frozen` for the supplied files to train once before February and reuse the last observed context while fetching each day's archived forecast. Frozen-context predictions are a baseline with increasingly stale history, not validated February results.
-
-The source CSV timezone is undocumented; confirm it before setting `--data-timezone`. The eight-hour weather publication lag is an assumption recorded in each audit, not a confirmed provider publication log. The forecast wind is for 10 m; hub height is not supplied. Do not describe the current February output as scored or validated. No GPU/cuDF run or accuracy evaluation has been completed.
-
-For the real path, install compatible NVIDIA RAPIDS (cuDF, cuML, CuPy) and CUDA-enabled PyTorch on a Linux or WSL2 GPU machine, then run:
-
-```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
-python -c "import cudf, cuml, cupy, torch; print(cudf.__version__, cuml.__version__, torch.__version__); assert torch.cuda.is_available()"
-python main_simulation.py --data-dir "data/raw" --data-timezone YOUR_CONFIRMED_IANA_TIMEZONE --history-policy frozen --backend cudf --device cuda --start 2026-02-01 --end 2026-02-28 --horizon 48
+python -m unittest discover -s tests -q
 ```
 
-The sample command assumes the two CSVs keep their exact original Russian filenames in `data/raw/`, which is gitignored. Replace `YOUR_CONFIRMED_IANA_TIMEZONE` with the timezone verified for the measurements. Custom paths are supported via `--turbine-1` and `--turbine-2`.
+В Windows создайте окружение через `py -3.11 -m venv .venv`, активируйте `.venv\Scripts\Activate.ps1`. CUDA/RAPIDS проверять отдельно в Linux/WSL2. Для просмотра уже готовых файлов достаточно встроенного HTTP-сервера Python; PyTorch нужен для обучения и полного набора тестов.
 
-The cumulative CSV retains all forecast origins, including overlapping target hours. Only `status: completed` in `run.json` marks a completed run; a failure can leave a partial CSV whose completed origins are listed in the manifest.
+Проверенные локальные версии: NumPy 2.4.6, pandas 2.3.3, requests 2.34.2, PyTorch 2.14.0, tzdata 2026.4. `requirements.txt` задаёт диапазоны, а не lockfile; побитовое совпадение на другом устройстве не гарантируется.
 
-Latest local validation: 41 CPU tests passed, and the February offline demo completed all 28 origins with 2,688 rows for a 48-hour horizon. CUDA/cuDF/cuML execution and forecast accuracy remain unverified. Evaluation requires a completed run with the current manifest format; regenerate older forecasts that lack completion metadata.
+### Интерфейс с готовым прогнозом
 
-## Suggested next steps
+```bash
+python -m http.server 8765 --bind 127.0.0.1 --directory .
+```
 
-1. Verify the CSV timestamp timezone/convention, turbine coordinates, hub height and submission schema with the case owner.
-2. Reproduce the CPU checks with `python -m unittest discover -s tests -v`, then run the GPU/cuDF smoke check and one-day real forecast.
-3. Build a chronological rolling-origin evaluation and persistence/power-curve baselines; report MAE/RMSE per turbine and lead time.
-4. Decide how missing February SCADA should be handled for the competition; never fill it with future observations or synthetic data.
-5. Review the CSV/JSON model forecast in `preview/` after a backtest run; measured February quality remains unavailable until observed power is provided.
+Откройте http://127.0.0.1:8765/preview/. Выберите источник «Прогноз модели», дату **30.01.2026**, горизонт **24 ч**. Файл на 24 часа автоматически переключает выбор с 48 на 24. Для синтетического примера выберите «Python демо», любую февральскую дату, 24/48 часов.
+
+Источник «Демо интерфейса» генерирует отдельный синтетический сценарий прямо в браузере. Карта — схема с двумя турбинами, не настоящая топография. Есть выбор мощности/ветра, выбранного часа и почасовое воспроизведение.
+
+Сервер должен обслуживать **корень проекта**: интерфейс загружает `../outputs/...`. Открытие HTML через `file://` или запуск сервера с `--directory preview` не подходит. Сборки npm нет. Панель показывает сохранённые файлы; обучение из браузера пока не запускается.
+
+### Воспроизвести январский CPU-прогноз
+
+**UTC здесь — неподтверждённое допущение для повторения существующего эксперимента.** Это не установленный часовой пояс исходных измерений.
+
+```bash
+python main_simulation.py --data-dir data/raw --data-timezone UTC --history-policy expanding --backend pandas --device cpu --start 2026-01-30 --end 2026-01-30 --horizon 24 --lookback 72 --train-days 14 --min-train-samples 14 --epochs 10 --seed 42 --output outputs/backtest
+python evaluate.py --forecasts outputs/backtest --turbine-1 "data/raw/Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 1.csv" --turbine-2 "data/raw/Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 2.csv" --data-timezone UTC --output outputs/evaluation.csv
+```
+
+Кеш в архиве подготовлен для этого январского запуска. При другой дате, горизонте или конфигурации могут потребоваться новые запросы Open-Meteo. Повторный запуск обновляет файлы своей выходной папки; для экспериментов используйте отдельный `--output`, сохраняя исходное сравнение. Метаданные приложенного запуска сохраняют прежние абсолютные пути исходного компьютера; при повторном запуске они обновятся.
+
+### Синтетический февральский цикл
+
+```bash
+python main_simulation.py --demo --start 2026-02-01 --end 2026-02-28 --horizon 48 --output outputs/demo
+```
+
+Ожидается 28 дневных CSV и JSON, `run.json`, `submission.csv` на 2 688 строк. Модель не обучается, погодный API не вызывается. Для этого режима вместо полных зависимостей достаточно `requirements-demo.txt`.
+
+## Что реализовано
+
+| Файл | Назначение |
+| --- | --- |
+| `data_agent.py` | Чтение SCADA, причинная агрегация 10 минут → час, признаки, pandas/cuDF, архивные прогнозы Open-Meteo GFS Previous Runs, кеш с проверкой происхождения и контрольной суммы |
+| `model_agent.py` | Совместный encoder–decoder Transformer двух турбин, PyTorch, CPU/CUDA; NumPy или cuML/CuPy для нормализации; контракты `TrainingData`, `ForecastData`, функции `train_model`, `predict` |
+| `validator_agent.py` | Проверка значений и границ мощности 0…1, опциональные ветровые пороги; Modulus пока заглушка |
+| `main_simulation.py` | Дневной цикл, обучение, прогноз, checkpoints, CSV/JSON-аудиты и завершённый manifest |
+| `main.py` | Совместимый вход, делегирует `main_simulation.py` |
+| `evaluate.py` | MAE/RMSE модели, persistence предыдущего часа и некалиброванной кубической кривой мощности, по турбине и часу упреждения |
+| `preview/` | Панель с картой-схемой: браузерное демо, Python CSV/JSON, дата, горизонт, выбор турбины/часа, воспроизведение, графики мощности/ветра, таблица, CSV |
+| `tests/` | Хронология, полнота данных, кеш, модель, физические проверки, manifest, оценка |
+
+«Агенты» — обычные программные модули с детерминированным оркестратором. LLM/NIM/API языковой модели не требуется. CFD, Omniverse, Isaac Sim, TFT и GNN здесь не реализованы.
+
+Важные последние исправления:
+
+1. Интерфейс читает результат Python и соответствующий JSON-аудит. При отсутствии или несовместимости данных старые значения очищаются, показывается ошибка.
+2. В реальном пайплайне **отключено обнуление мощности по прогнозу ветра на 10 м**. Эти скорости нельзя непосредственно применять к порогам ротора. Ограничение мощности 0…1 сохранено; в аудите `wind_height_m: 10`, `physical_validation.wind_limits_applied: false`. Деморежим сохраняет иллюстративные пороги 3/25 м/с.
+3. Общий submission собирается только из файлов текущего запуска. Оценка принимает лишь `run.json` со `status: completed`, `submission_complete: true` и согласованным списком дневных файлов.
+4. UI автоматически выбирает доступный 24-часовой горизонт.
+5. Параллельно интегрирована панель с картой-схемой и тремя источниками: «Демо интерфейса», «Python демо», «Прогноз модели».
+
+## Данные и ограничения эксперимента
+
+- Два исходных CSV фактически заканчиваются **31.01.2026 23:50**, хотя названия упоминают февраль. Наблюдений февраля нет.
+- При интерпретации UTC получено 23 667 полных часов T1 и 24 785 T2. Час требует шести уникальных десятиминутных показаний. Пропуски сохраняются; конфликтующие дубликаты отклоняются.
+- Мощность нормализована, единица p.u.; это не МВт и не МВт·ч. Номинальная мощность не задана.
+- Часовой пояс CSV, начало/конец измерительного интервала и задержка поступления SCADA требуют подтверждения. Сейчас код считает метку началом интервала.
+- Координаты в коде: T1 `(51.04, 71.46)`, T2 `(51.05, 71.45)`. Независимая проверка не выполнена. Высота ступицы и высота SCADA-анемометра неизвестны.
+- В январском тесте прогноз ветра на 10 м в среднем около 2.39 м/с; SCADA около 9.34/9.58 м/с. Причина расхождения не установлена: проверить координаты, высоты, timezone, единицы и источник погоды. Не подбирать коэффициент по тестовым целевым значениям.
+- Погодные признаки — архив **прогнозов**, не наблюдения/reanalysis. Восьмичасовой publication lag — допущение; сохранены верхние границы доступности, а не подтверждённый журнал выдачи прогнозов.
+- `expanding` ежедневно переобучается и требует новых наблюдений. После 1 февраля предоставленных данных для него недостаточно. `frozen` замораживает обучение и контекст перед первым выпуском, затем использует новый прогноз погоды; контекст устаревает. Это ограниченный baseline, без проверенной февральской точности.
+- UI сейчас ищет имена `forecast_YYYYMMDDT0000Z` в фиксированных папках `outputs/demo` и `outputs/backtest`; поддерживает выпуски в полночь UTC и даты января–февраля 2026. Произвольные папки/часовые пояса и графики факта/baselines ещё не подключены.
+
+### Сохранять причинность при улучшениях
+
+Наблюдения доступны строго до времени выпуска T. История `[s−72h, s)` и весь целевой горизонт обучающего примера должны завершиться до cutoff обучения. Погода для обучающего примера берётся по доступности на момент s, для рабочего прогноза — на момент T. Нормализация и калибровка обучаются только на training-отрезке. Не использовать будущую мощность, случайное перемешивание временного holdout или замену прогноза фактической погодой.
+
+CSV-контракт: `forecast_origin, valid_time, turbine_id, power_normalized, wind_speed_ms`. Один целевой час может встречаться у нескольких выпусков — это разные прогнозы. Финальный submission-формат организатора ещё требуется сверить.
+
+## Проверенные результаты
+
+Реальный исторический запуск: **30.01.2026 00:00 UTC**, горизонт 24 часа, 2 турбины, 72 часа контекста, 14 суточных обучающих примеров, 10 эпох, seed 42, CPU. Manifest завершён, 48 строк, реальные погодные прогнозы из архива.
+
+| Метод | T1 MAE | T1 RMSE | T2 MAE | T2 RMSE |
+| --- | ---: | ---: | ---: | ---: |
+| Transformer | 0.382 | 0.434 | 0.315 | 0.356 |
+| Persistence прошлого часа | 0.281 | 0.364 | 0.268 | 0.358 |
+| Некалиброванная кривая мощности | 0.709 | 0.746 | 0.722 | 0.760 |
+
+Метрики агрегированы по 24 целевым часам каждой турбины. В `outputs/evaluation.csv` одна оценка на пару турбина/lead_hour, `n=1`; это **один день**, не устойчивый benchmark. Модель уступает persistence по MAE обеих турбин. Кривая мощности использует некалиброванный ветер 10 м и не является сильным физическим baseline. UTC остаётся допущением, поэтому эти числа предварительные.
+
+Последняя полная проверка исходного кода: **42 теста, OK**, без пропусков модельных тестов. Проверен синтаксис `preview/app.js`. До обновления карты в браузере проверялись загрузка CSV/аудита, смена горизонта и ошибка отсутствующего файла. Новая карта получена из параллельной ветки при сборке handoff; её интерактивные сценарии в этой проверке не повторялись. NVIDIA/CUDA/cuDF/cuML ещё не запускались. Февральская точность не измерена.
+
+Проверка распакованного архива на исходном Mac с существующим Python-окружением:
+
+```text
+Ran 42 tests in 4.661s — OK
+PASS: offline January replay = bundled forecast (48 rows, tolerance 1e-6)
+PASS: evaluation = bundled metrics (48 turbine-hours, tolerance 1e-6)
+PASS: synthetic demo manifest completed, 28 origins, 2688 rows
+```
+
+Во время повторения январского прогноза сетевые вызовы requests были запрещены: приложенного кеша хватило. Установка зависимостей на другом компьютере отдельно не проверялась. Полный краткий протокол включён в `outputs/handoff-verification.txt` архива.
+
+## Что улучшать дальше — порядок и критерий готовности
+
+1. **Подтвердить метаданные.** Получить timezone, координаты, высоты, смысл временных меток и задержки поступления. После изменений повторить оценку, сохранив исходные результаты отдельно.
+2. **Сделать rolling backtest января.** Использовать существующий дневной цикл и `evaluate.py`, выделить временные development/holdout отрезки. Сравнивать одинаковые наблюдаемые часы для всех методов; показывать размер выборки, пропуски, MAE/RMSE по турбинам и lead. Для горизонта 48 ч последний полностью наблюдаемый выпуск — 30 января при допущении UTC. Не объявлять улучшение по одному дню.
+3. **Улучшать baseline по измеримому результату.** Сначала проверить согласованность погодных признаков, persistence и простую обучаемую модель/калибровку на training-части. Затем выбирать длину истории, окно обучения и параметры Transformer на development-части. Зафиксировать конфигурацию перед holdout; не усложнять архитектуру без выигрыша.
+4. **Показать качество в UI.** Добавить факт, persistence и метрики из вычисленных артефактов; показывать число наблюдений и допущения. Получать доступные даты/выпуски из manifest вместо жёстко заданного имени. Критерий: график и таблица совпадают с CSV, демо явно помечено, недоступные результаты не подменяются.
+5. **Проверить NVIDIA.** В Brev пока достигнута только страница входа; инстанс не создан, GPU-тест не выполнен. Подготовить совместимый Linux CUDA/RAPIDS/PyTorch, проверить одну дату, сопоставить CPU/GPU результаты с разумным допуском. GPU имеет смысл измерять на более длинной валидации; для маленького примера CPU уже достаточен. API для запуска из UI добавлять при необходимости интерактивного расчёта.
+
+Команда проверки установленного GPU-окружения:
+
+```bash
+python -c "import torch, cudf, cuml, cupy; print(torch.__version__, cudf.__version__, cuml.__version__); assert torch.cuda.is_available()"
+```
+
+После установки совместимых пакетов повторите январскую команду, заменив `--backend pandas --device cpu` на `--backend cudf --device cuda` и задав `--output outputs/gpu-check`. `requirements.txt` не устанавливает RAPIDS. Подбирать версии по официальным инструкциям: https://docs.rapids.ai/install/ и https://docs.nvidia.com/brev/getting-started/quickstart. Аренда GPU и доступ к аккаунту — отдельный шаг владельца проекта.
+
+## Текст для первого сообщения другому IDE
+
+> Продолжи разработку ALEM WIND. Прочитай HANDOFF.md и текущие исходники, проверь состояние Git и воспроизведи CPU-тесты, январский прогноз и оценку. Не перезаписывай исходный эксперимент и чужие изменения. Сначала улучши rolling backtest и сравнение с persistence, затем покажи факт и baseline в интерфейсе. Сохраняй причинность временных данных. UTC, координаты и высоты пока не подтверждены; не выдавай предварительные метрики за финальные. Работай небольшими изменениями и проверяй результат запуском. NVIDIA-интеграцию продолжай после проверки доступа и окружения; не утверждай, что GPU или CFD уже протестированы.
