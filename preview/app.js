@@ -19,7 +19,7 @@ async function loadRows(){
      (source==="backtest" && audit.trained_model!==true))throw new Error("CSV-аудит не соответствует выбранному источнику и дате.");
   const lines=csv.trim().split(/\r?\n/);
   if(lines.shift()!=="forecast_origin,valid_time,turbine_id,power_normalized,wind_speed_ms" ||
-     lines.length!==audit.horizon_hours*2 || audit.horizon_hours<state.horizon)throw new Error("Неполный CSV или неверный горизонт прогноза.");
+     ![24,48].includes(audit.horizon_hours) || lines.length!==audit.horizon_hours*2)throw new Error("Неполный CSV или неверный горизонт прогноза.");
   const hours=new Map();
   for(const line of lines){
     const fields=line.split(",");
@@ -33,9 +33,10 @@ async function loadRows(){
     if(row["power"+id]!==undefined)throw new Error("Повтор турбины в CSV.");
     row["power"+id]=power;row["wind"+id]=wind;hours.set(hour,row);
   }
-  const rows=Array.from({length:state.horizon},(_,hour)=>hours.get(hour));
+  const horizon=Math.min(state.horizon,audit.horizon_hours);
+  const rows=Array.from({length:horizon},(_,hour)=>hours.get(hour));
   if(rows.some(row=>!row || row.power1===undefined || row.power2===undefined))throw new Error("В CSV пропущены часы или турбины.");
-  return {rows,csv,audit,stem,source};
+  return {rows,csv,audit,stem,source,horizon};
 }
 function drawChart(){
   const w=760,h=255,left=37,right=12,top=15,bottom=30,pw=w-left-right,ph=h-top-bottom;
@@ -61,8 +62,13 @@ async function render(){
   const request=++state.request;
   $("agent-status").textContent="Загрузка прогноза…";
   try{
-    const {rows,csv,audit,stem,source}=await loadRows();
+    const {rows,csv,audit,stem,source,horizon}=await loadRows();
     if(request!==state.request)return;
+    state.horizon=horizon;
+    document.querySelectorAll("[data-horizon]").forEach(button=>{
+      const active=Number(button.dataset.horizon)===horizon;
+      button.classList.toggle("selected",active);button.setAttribute("aria-pressed",String(active));
+    });
     state.rows=rows;state.csv=csv;state.stem=stem;
     $("download").disabled=false;
     const demo=source==="demo";
