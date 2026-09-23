@@ -1,17 +1,19 @@
 """Joint two-turbine Transformer using history and issue-time weather forecasts.
 
-The caller must enforce temporal cutoffs and forecast issue times. This module
-never downloads weather, selects a holdout, or substitutes observed future data.
+Public train_model/predict wrappers check temporal provenance before execution.
+The lower-level ModelAgent API assumes those checks were performed by its caller.
+This module never downloads weather or substitutes observed future data.
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 import math
 from pathlib import Path
 import random
 import tempfile
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 import torch
@@ -35,6 +37,7 @@ class ModelConfig:
     learning_rate: float = 0.001
     device: str = "cuda"
     seed: int = 42
+    scaler_backend: str = "auto"
 
     def __post_init__(self) -> None:
         for name in (
@@ -54,6 +57,51 @@ class ModelConfig:
             raise ValueError("learning_rate must be finite and positive")
         if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed < 2**32:
             raise ValueError("seed must be an integer in [0, 2**32)")
+        if self.scaler_backend not in {"auto", "cuml", "numpy"}:
+            raise ValueError("scaler_backend must be 'auto', 'cuml', or 'numpy'")
+
+
+@dataclass(frozen=True)
+class TrainingData:
+    """Dense hourly windows with provenance supplied by the data agent.
+
+    history[i] is ordered from origins[i]-lookback through origins[i]-1h;
+    weather[i] and targets[i] start at origins[i]. Availability is the latest
+    upper bound across all turbines/features, per [sample, forecast hour].
+    All metadata timestamps must be timezone-aware datetime objects.
+    """
+
+    history: np.ndarray
+    weather: np.ndarray
+    targets: np.ndarray
+    origins: Sequence[datetime]
+    current_date: datetime
+    available_at_upper_bound: np.ndarray
+
+
+@dataclass(frozen=True)
+class ForecastData:
+    """One dense hourly history window and its issued [H, W] weather forecast.
+
+    The final history row describes context_origin-1h (current_date-1h when
+    omitted). A stale context_origin can be used when recent SCADA is missing.
+    Weather always starts at current_date; availability bounds have H entries.
+    """
+
+    history: np.ndarray
+    weather: np.ndarray
+    current_date: datetime
+    available_at_upper_bound: Sequence[datetime]
+    context_origin: datetime | None = None
+
+
+def _utc_timestamp(value: datetime, name: str, *, hourly: bool = False) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{name} must be a timezone-aware datetime")
+    result = value.astimezone(timezone.utc)
+    if hourly and (result.minute or result.second or result.microsecond):
+        raise ValueError(f"{name} must be aligned to a UTC hour")
+    return result
 
 
 def _array(value: np.ndarray, name: str) -> np.ndarray:
@@ -73,21 +121,54 @@ def _array(value: np.ndarray, name: str) -> np.ndarray:
 class _Standardizer:
     """Feature statistics fit exclusively to the supplied training sequences."""
 
-    def __init__(self, mean: np.ndarray, scale: np.ndarray) -> None:
+    def __init__(
+        self, mean: np.ndarray, scale: np.ndarray,
+        backend: str = "numpy", device_index: int | None = None,
+    ) -> None:
         self.mean = mean
         self.scale = scale
+        self.backend = backend
+        self.device_index = device_index
 
     @classmethod
-    def fit(cls, values: np.ndarray) -> _Standardizer:
-        flattened = values.reshape(-1, values.shape[-1]).astype(np.float64)
-        mean = flattened.mean(axis=0)
-        scale = flattened.std(axis=0)
+    def fit(
+        cls, values: np.ndarray, backend: str = "numpy", device_index: int | None = None,
+    ) -> _Standardizer:
+        flattened = values.reshape(-1, values.shape[-1])
+        if backend == "cuml":
+            try:
+                import cupy as cp
+                from cuml.preprocessing import StandardScaler
+            except ImportError as error:
+                raise RuntimeError(
+                    "CUDA scaling requires CuPy and RAPIDS cuML. Install matching RAPIDS/CUDA "
+                    "packages or explicitly set scaler_backend='numpy'."
+                ) from error
+            with cp.cuda.Device(device_index):
+                scaler = StandardScaler().fit(cp.asarray(flattened, dtype=cp.float64))
+                mean = cp.asnumpy(cp.asarray(scaler.mean_)).astype(np.float64)
+                scale = cp.asnumpy(cp.asarray(scaler.scale_)).astype(np.float64)
+        else:
+            flattened = flattened.astype(np.float64)
+            mean = flattened.mean(axis=0)
+            scale = flattened.std(axis=0)
         scale[scale < 1e-8] = 1.0
-        return cls(mean, scale)
+        return cls(mean, scale, backend, device_index)
 
     def transform(self, values: np.ndarray) -> np.ndarray:
-        with np.errstate(over="ignore"):
-            result = ((values.astype(np.float64) - self.mean) / self.scale).astype(np.float32)
+        if self.backend == "cuml":
+            try:
+                import cupy as cp
+            except ImportError as error:
+                raise RuntimeError("CUDA normalization requires CuPy") from error
+            with cp.cuda.Device(self.device_index):
+                result = cp.asnumpy(
+                    ((cp.asarray(values, dtype=cp.float64) - cp.asarray(self.mean)) / cp.asarray(self.scale))
+                    .astype(cp.float32)
+                )
+        else:
+            with np.errstate(over="ignore"):
+                result = ((values.astype(np.float64) - self.mean) / self.scale).astype(np.float32)
         if not np.isfinite(result).all():
             raise ValueError("Standardized features contain nonfinite values")
         return np.ascontiguousarray(result)
@@ -97,14 +178,17 @@ class _Standardizer:
         return {"mean": torch.from_numpy(self.mean.copy()), "scale": torch.from_numpy(self.scale.copy())}
 
     @classmethod
-    def from_state(cls, state: dict[str, torch.Tensor], features: int) -> _Standardizer:
+    def from_state(
+        cls, state: dict[str, torch.Tensor], features: int,
+        backend: str = "numpy", device_index: int | None = None,
+    ) -> _Standardizer:
         mean = state["mean"].cpu().numpy().astype(np.float64)
         scale = state["scale"].cpu().numpy().astype(np.float64)
         if mean.shape != (features,) or scale.shape != (features,):
             raise ValueError("Checkpoint normalization dimensions do not match ModelConfig")
         if not np.isfinite(mean).all() or not np.isfinite(scale).all() or (scale <= 0).any():
             raise ValueError("Checkpoint contains invalid normalization statistics")
-        return cls(mean, scale)
+        return cls(mean, scale, backend, device_index)
 
 
 class _ForecastTransformer(nn.Module):
@@ -161,11 +245,18 @@ class ModelAgent:
                 raise RuntimeError("CUDA was requested but is unavailable. Install CUDA-enabled PyTorch or explicitly select device='cpu'.")
             if self.device.index is not None and self.device.index >= torch.cuda.device_count():
                 raise ValueError(f"CUDA device index {self.device.index} is unavailable")
+        self.scaler_backend = (
+            "cuml" if self.device.type == "cuda" else "numpy"
+        ) if config.scaler_backend == "auto" else config.scaler_backend
+        if self.scaler_backend == "cuml" and self.device.type != "cuda":
+            raise ValueError("scaler_backend='cuml' requires a CUDA device")
         self._seed()
         self.model = _ForecastTransformer(config).to(self.device)
         self.history_scaler: _Standardizer | None = None
         self.weather_scaler: _Standardizer | None = None
         self.fitted = False
+        self.training_metrics: dict[str, Any] = {}
+        self.training_cutoff: datetime | None = None
 
     def _seed(self) -> None:
         random.seed(self.config.seed)
@@ -203,10 +294,14 @@ class ModelAgent:
             raise ValueError("targets must be normalized to [0, 1] before training")
 
         self.fitted = False
+        self.training_cutoff = None
+        self.training_metrics = {}
         self._seed()
         self.model = _ForecastTransformer(self.config).to(self.device)
-        self.history_scaler = _Standardizer.fit(history)
-        self.weather_scaler = _Standardizer.fit(weather)
+        self.history_scaler = _Standardizer.fit(history, self.scaler_backend, self.device.index)
+        self.weather_scaler = _Standardizer.fit(weather, self.scaler_backend, self.device.index)
+        # cuML fits feature statistics and CuPy scales on GPU. Host tensors remain
+        # the DataLoader boundary, with pinned batches copied to CUDA as needed.
         dataset = TensorDataset(
             torch.from_numpy(self.history_scaler.transform(history)),
             torch.from_numpy(self.weather_scaler.transform(weather)),
@@ -243,11 +338,13 @@ class ModelAgent:
             losses.append(total_loss / len(dataset))
         self.model.eval()
         self.fitted = True
-        return {
+        self.training_metrics = {
             "training_mse": losses[-1], "epoch_training_mse": losses,
             "samples": len(dataset), "epochs": self.config.epochs,
             "device": str(self.device), "mixed_precision": on_cuda,
+            "scaler_backend": self.scaler_backend,
         }
+        return dict(self.training_metrics)
 
     def predict(self, history: np.ndarray, weather: np.ndarray) -> np.ndarray:
         """Return normalized [H, turbines] or [B, H, turbines] predictions."""
@@ -287,6 +384,7 @@ class ModelAgent:
             "model_state": {key: value.detach().cpu() for key, value in self.model.state_dict().items()},
             "history_scaler": self.history_scaler.state(),
             "weather_scaler": self.weather_scaler.state(),
+            "training_cutoff": self.training_cutoff.isoformat() if self.training_cutoff is not None else None,
         }
         temporary: Path | None = None
         try:
@@ -307,13 +405,88 @@ class ModelAgent:
         config = dict(checkpoint["config"])
         if device is not None:
             config["device"] = device
+            if torch.device(device).type == "cpu" and config.get("scaler_backend") == "cuml":
+                config["scaler_backend"] = "numpy"
         agent = cls(ModelConfig(**config))
-        agent.history_scaler = _Standardizer.from_state(checkpoint["history_scaler"], agent.config.history_features)
-        agent.weather_scaler = _Standardizer.from_state(checkpoint["weather_scaler"], agent.config.weather_features)
+        agent.history_scaler = _Standardizer.from_state(
+            checkpoint["history_scaler"], agent.config.history_features, agent.scaler_backend, agent.device.index,
+        )
+        agent.weather_scaler = _Standardizer.from_state(
+            checkpoint["weather_scaler"], agent.config.weather_features, agent.scaler_backend, agent.device.index,
+        )
         state = checkpoint["model_state"]
         if any(not bool(torch.isfinite(tensor).all()) for tensor in state.values()):
             raise ValueError("Checkpoint contains nonfinite model weights")
         agent.model.load_state_dict(state, strict=True)
         agent.model.eval()
         agent.fitted = True
+        if checkpoint.get("training_cutoff") is not None:
+            agent.training_cutoff = _utc_timestamp(
+                datetime.fromisoformat(checkpoint["training_cutoff"]), "checkpoint training_cutoff", hourly=True,
+            )
         return agent
+
+
+def train_model(train_data: TrainingData, config: ModelConfig | None = None) -> ModelAgent:
+    """Train on completed pre-cutoff targets and forecasts available at each origin.
+
+    Defaults use CUDA and cuML. Supply ModelConfig(device='cpu', ...) explicitly
+    for development. The data agent is responsible for the documented ordering
+    of dense history/target rows and genuine weather-forecast provenance.
+    """
+    cutoff = _utc_timestamp(train_data.current_date, "current_date", hourly=True)
+    history = np.asarray(train_data.history)
+    weather = np.asarray(train_data.weather)
+    targets = np.asarray(train_data.targets)
+    if history.ndim != 3 or weather.ndim != 3 or targets.ndim != 3:
+        raise ValueError("Training history, weather, and targets must each be three-dimensional")
+    samples, horizon = weather.shape[:2]
+    if samples == 0 or history.shape[0] != samples or targets.shape[:2] != (samples, horizon):
+        raise ValueError("Training history, weather, and targets must have matching nonzero samples/horizon")
+    if len(train_data.origins) != samples:
+        raise ValueError("origins must contain one timestamp per training sample")
+    available = np.asarray(train_data.available_at_upper_bound, dtype=object)
+    if available.shape != (samples, horizon):
+        raise ValueError("available_at_upper_bound must have shape [N, H]")
+    for sample, value in enumerate(train_data.origins):
+        origin = _utc_timestamp(value, f"origins[{sample}]", hourly=True)
+        # A target stamped origin+H-1h is complete only at origin+H.
+        if origin + timedelta(hours=horizon) > cutoff:
+            raise ValueError("Training targets must be strictly before current_date and fully observed")
+        for lead, bound in enumerate(available[sample]):
+            if _utc_timestamp(bound, f"available_at_upper_bound[{sample},{lead}]") > origin:
+                raise ValueError("Training weather forecast was not available at its sample origin")
+    if config is None:
+        config = ModelConfig(
+            history_features=history.shape[2], weather_features=weather.shape[2],
+            num_turbines=targets.shape[2], lookback=history.shape[1], horizon=horizon,
+        )
+    agent = ModelAgent(config)
+    agent.fit(history, weather, targets)
+    agent.training_cutoff = cutoff
+    return agent
+
+
+def predict(model: ModelAgent, forecast_data: ForecastData) -> np.ndarray:
+    """Return [H, turbines] power, rejecting unavailable weather/backdated models."""
+    current = _utc_timestamp(forecast_data.current_date, "current_date", hourly=True)
+    context = current if forecast_data.context_origin is None else _utc_timestamp(
+        forecast_data.context_origin, "context_origin", hourly=True,
+    )
+    if context > current:
+        raise ValueError("History context_origin cannot be later than current_date")
+    if model.training_cutoff is None:
+        raise ValueError("Model training provenance is missing; use train_model() before public predict()")
+    if model.training_cutoff > current:
+        raise ValueError("Model was trained after the prediction current_date")
+    history = np.asarray(forecast_data.history)
+    weather = np.asarray(forecast_data.weather)
+    if history.ndim != 2 or weather.ndim != 2:
+        raise ValueError("ForecastData must contain one two-dimensional history/weather window")
+    available = np.asarray(forecast_data.available_at_upper_bound, dtype=object)
+    if available.shape != (model.config.horizon,):
+        raise ValueError("available_at_upper_bound must contain H timestamps")
+    for lead, bound in enumerate(available):
+        if _utc_timestamp(bound, f"available_at_upper_bound[{lead}]") > current:
+            raise ValueError("Weather forecast was not available at current_date")
+    return model.predict(history, weather)

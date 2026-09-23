@@ -106,6 +106,45 @@ class DemoOutputTests(unittest.TestCase):
             audit = json.loads((path / "forecast_20260228T0000Z.json").read_text())
             self.assertEqual(audit["mode"], "synthetic-demo")
             self.assertFalse(audit["trained_model"])
+            submission = pd.read_csv(path / "submission.csv")
+            self.assertEqual(len(submission), 28 * 48 * 2)
+            self.assertEqual(submission.forecast_origin.nunique(), 28)
+            self.assertEqual(submission.groupby(["forecast_origin", "turbine_id"]).size().unique().tolist(), [48])
+            manifest = json.loads((path / "run.json").read_text())
+            self.assertEqual(manifest["status"], "completed")
+            self.assertTrue(manifest["submission_complete"])
+            self.assertEqual(manifest["submission_rows"], 2688)
+
+    def test_rerun_rebuilds_submission_without_duplicates_or_stale_days(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parser = build_parser()
+            with contextlib.redirect_stdout(io.StringIO()):
+                run(parser.parse_args(["--demo", "--output", directory, "--end", "2026-02-03"]))
+                args = parser.parse_args(["--demo", "--output", directory, "--end", "2026-02-01"])
+                run(args)
+                run(args)
+            path = Path(directory)
+            submission = pd.read_csv(path / "submission.csv")
+            self.assertEqual(len(submission), 96)
+            self.assertEqual(submission.forecast_origin.nunique(), 1)
+            self.assertTrue((path / "forecast_20260203T0000Z.csv").exists())
+            manifest = json.loads((path / "run.json").read_text())
+            self.assertEqual(manifest["daily_files"], ["forecast_20260201T0000Z.csv"])
+
+    def test_failed_rerun_cannot_leave_stale_complete_submission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = build_parser().parse_args(["--demo", "--output", directory, "--end", "2026-02-01"])
+            with contextlib.redirect_stdout(io.StringIO()):
+                run(args)
+                with patch("main_simulation.synthetic_forecast", side_effect=RuntimeError("forecast unavailable")):
+                    with self.assertRaisesRegex(RuntimeError, "forecast unavailable"):
+                        run(args)
+            path = Path(directory)
+            self.assertEqual(len(pd.read_csv(path / "submission.csv")), 0)
+            manifest = json.loads((path / "run.json").read_text())
+            self.assertEqual(manifest["status"], "failed")
+            self.assertFalse(manifest["submission_complete"])
+            self.assertEqual(manifest["completed_origins"], [])
 
     def test_demo_cannot_overwrite_real_artifacts(self):
         origin = pd.Timestamp("2026-02-01", tz="UTC")
@@ -126,6 +165,10 @@ class HistoryPolicyIntegrationTests(unittest.TestCase):
         self.weather_requests = []
         self.fit_calls = []
         self.predict_calls = []
+        self.training_payloads = []
+        self.forecast_payloads = []
+        self.history_paths = []
+        self.include_february = False
         owner = self
 
         @dataclass
@@ -146,8 +189,10 @@ class HistoryPolicyIntegrationTests(unittest.TestCase):
 
             def load_history(self, path, current_date):
                 owner.history_requests.append(current_date)
+                owner.history_paths.append(path)
                 # Fixture intentionally has no February observations, like the supplied CSVs.
-                index = hour_index(owner.first_origin, 8 * 24, -8 * 24)
+                end = current_date if owner.include_february else owner.first_origin
+                index = hour_index(end, 8 * 24, -8 * 24)
                 frame = pd.DataFrame({feature: np.full(len(index), 0.4) for feature in HISTORY_FEATURES}, index=index)
                 return frame.loc[frame.index < current_date]
 
@@ -175,9 +220,28 @@ class HistoryPolicyIntegrationTests(unittest.TestCase):
             def save(self, path):
                 path.write_text("mock checkpoint", encoding="utf-8")
 
+        def fake_train_model(train_data, config=None):
+            owner.training_payloads.append(train_data)
+            model = FakeModelAgent(config)
+            model.training_metrics = model.fit(train_data.history, train_data.weather, train_data.targets)
+            return model
+
+        def fake_predict(model, forecast_data):
+            owner.forecast_payloads.append(forecast_data)
+            return model.predict(forecast_data.history, forecast_data.weather)
+
+        def fake_fetch_weather(latitude, longitude, current_date, *, horizon, agent):
+            return agent.fetch_forecast(latitude, longitude, current_date, horizon)
+
         self.modules = {
-            "data_agent": SimpleNamespace(DataAgent=FakeDataAgent),
-            "model_agent": SimpleNamespace(ModelAgent=FakeModelAgent, ModelConfig=FakeConfig),
+            "data_agent": SimpleNamespace(
+                DataAgent=FakeDataAgent, DATASET_FILENAMES=("exact turbine 1.csv", "exact turbine 2.csv"),
+                fetch_weather_forecast=fake_fetch_weather,
+            ),
+            "model_agent": SimpleNamespace(
+                ModelConfig=FakeConfig, TrainingData=SimpleNamespace, ForecastData=SimpleNamespace,
+                train_model=fake_train_model, predict=fake_predict,
+            ),
         }
 
     def arguments(self, directory, policy):
@@ -213,6 +277,39 @@ class HistoryPolicyIntegrationTests(unittest.TestCase):
                     run(self.arguments(directory, "expanding"))
             self.assertEqual(len(list(Path(directory).glob("forecast_*.csv"))), 1)
             self.assertEqual(self.history_requests[-1], self.first_origin + pd.Timedelta(days=1))
+            manifest = json.loads((Path(directory) / "run.json").read_text())
+            self.assertEqual(manifest["status"], "failed")
+            self.assertFalse(manifest["submission_complete"])
+            self.assertEqual(manifest["submission_rows"], 48)
+            self.assertIn("February observations", manifest["error"])
+            self.assertEqual(len(pd.read_csv(Path(directory) / "submission.csv")), 48)
+
+    def test_expanding_retrains_daily_and_passes_cutoff_metadata_to_wrappers(self):
+        self.include_february = True
+        with tempfile.TemporaryDirectory() as directory:
+            args = self.arguments(directory, "expanding")
+            # Default filenames are resolved only when an explicit override is absent.
+            args.turbine_1 = args.turbine_2 = None
+            args.data_dir = Path("fixtures")
+            with patch.dict("sys.modules", self.modules), contextlib.redirect_stdout(io.StringIO()):
+                run(args)
+            self.assertEqual(len(self.fit_calls), 3)
+            self.assertEqual(len(self.predict_calls), 3)
+            self.assertEqual(self.history_paths[:2], [Path("fixtures/exact turbine 1.csv"), Path("fixtures/exact turbine 2.csv")])
+            for offset, payload in enumerate(self.training_payloads):
+                self.assertEqual(payload.current_date, self.first_origin + pd.Timedelta(days=offset))
+                self.assertEqual(payload.available_at_upper_bound.shape, (len(payload.origins), 24))
+                for sample, sample_origin in enumerate(payload.origins):
+                    self.assertTrue(all(bound <= sample_origin for bound in payload.available_at_upper_bound[sample]))
+                    self.assertLess(sample_origin + pd.Timedelta(hours=23), payload.current_date)
+            for payload in self.forecast_payloads:
+                self.assertEqual(payload.context_origin, payload.current_date)
+                self.assertTrue(all(bound <= payload.current_date for bound in payload.available_at_upper_bound))
+            submission = pd.read_csv(Path(directory) / "submission.csv")
+            self.assertEqual(len(submission), 3 * 24 * 2)
+
+    def test_daily_retraining_is_the_default_policy(self):
+        self.assertEqual(build_parser().parse_args([]).history_policy, "expanding")
 
 
 if __name__ == "__main__":

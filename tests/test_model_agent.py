@@ -1,6 +1,8 @@
 """CPU smoke tests for inference behavior and checkpoint portability."""
 
 import importlib.util
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import tempfile
 import unittest
@@ -10,7 +12,7 @@ import numpy as np
 TORCH_AVAILABLE = importlib.util.find_spec("torch") is not None
 if TORCH_AVAILABLE:
     import torch
-    from model_agent import ModelAgent, ModelConfig
+    from model_agent import ForecastData, ModelAgent, ModelConfig, TrainingData, predict, train_model
 
 
 @unittest.skipUnless(TORCH_AVAILABLE, "PyTorch is not installed")
@@ -32,6 +34,13 @@ class ModelAgentTest(unittest.TestCase):
         )
         cls.agent = ModelAgent(cls.config)
         cls.metrics = cls.agent.fit(cls.history, cls.weather, cls.targets)
+        cls.current_date = datetime(2026, 2, 1, tzinfo=timezone.utc)
+        cls.origins = [cls.current_date - timedelta(days=4 - index) for index in range(4)]
+        cls.training_data = TrainingData(
+            history=cls.history, weather=cls.weather, targets=cls.targets,
+            origins=cls.origins, current_date=cls.current_date,
+            available_at_upper_bound=np.array([[origin] * 24 for origin in cls.origins], dtype=object),
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -78,6 +87,52 @@ class ModelAgentTest(unittest.TestCase):
             ModelAgent(self.config).predict(self.history, self.weather)
         with self.assertRaisesRegex(ValueError, "24 or 48"):
             ModelConfig(history_features=4, weather_features=3, horizon=12)
+
+    def test_public_training_prediction_and_provenance_checkpoint(self):
+        agent = train_model(self.training_data, replace(self.config, epochs=1))
+        forecast = ForecastData(
+            history=self.history[0], weather=self.weather[0], current_date=self.current_date,
+            available_at_upper_bound=[self.current_date] * 24,
+        )
+        expected = predict(agent, forecast)
+        self.assertEqual(expected.shape, (24, 2))
+        self.assertEqual(agent.training_cutoff, self.current_date)
+        self.assertEqual(agent.training_metrics["scaler_backend"], "numpy")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "model.pt"
+            agent.save(path)
+            restored = ModelAgent.load(path, device="cpu")
+            self.assertEqual(restored.training_cutoff, self.current_date)
+            np.testing.assert_allclose(predict(restored, forecast), expected, rtol=1e-6, atol=1e-6)
+        with self.assertRaisesRegex(ValueError, "trained after"):
+            predict(agent, replace(forecast, current_date=self.current_date - timedelta(hours=1)))
+        with self.assertRaisesRegex(ValueError, "not available"):
+            predict(agent, replace(forecast, available_at_upper_bound=[self.current_date + timedelta(seconds=1)] * 24))
+        with self.assertRaisesRegex(ValueError, "context_origin"):
+            predict(agent, replace(forecast, context_origin=self.current_date + timedelta(hours=1)))
+
+    def test_rejects_targets_crossing_cutoff_and_future_weather(self):
+        with self.assertRaisesRegex(ValueError, "strictly before"):
+            train_model(replace(self.training_data, current_date=self.current_date - timedelta(hours=1)), self.config)
+        bounds = self.training_data.available_at_upper_bound.copy()
+        bounds[0, -1] = self.origins[0] + timedelta(seconds=1)
+        with self.assertRaisesRegex(ValueError, "sample origin"):
+            train_model(replace(self.training_data, available_at_upper_bound=bounds), self.config)
+
+    def test_rejects_naive_or_misaligned_cutoffs_and_missing_provenance(self):
+        with self.assertRaisesRegex(ValueError, "timezone-aware"):
+            train_model(replace(self.training_data, current_date=self.current_date.replace(tzinfo=None)), self.config)
+        with self.assertRaisesRegex(ValueError, "UTC hour"):
+            train_model(replace(self.training_data, current_date=self.current_date + timedelta(minutes=1)), self.config)
+        with self.assertRaisesRegex(ValueError, "one timestamp"):
+            train_model(replace(self.training_data, origins=self.origins[:-1]), self.config)
+        with self.assertRaisesRegex(ValueError, "shape"):
+            train_model(replace(self.training_data, available_at_upper_bound=np.array(self.origins)), self.config)
+        with self.assertRaisesRegex(ValueError, "provenance"):
+            predict(self.agent, ForecastData(
+                history=self.history[0], weather=self.weather[0], current_date=self.current_date,
+                available_at_upper_bound=[self.current_date] * 24,
+            ))
 
     @unittest.skipIf(TORCH_AVAILABLE and torch.cuda.is_available(), "CUDA is available")
     def test_cuda_request_does_not_silently_fall_back_to_cpu(self):

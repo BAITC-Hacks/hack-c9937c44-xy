@@ -20,6 +20,10 @@ import numpy as np
 import pandas as pd
 
 
+DATASET_FILENAMES = (
+    "Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 1.csv",
+    "Dataset HackAlemAI для участников 11.03.2023-28.02.2026 - turbine 2.csv",
+)
 HISTORY_FEATURES = (
     "power", "wind_speed", "temperature", "hour_sin", "hour_cos", "doy_sin",
     "doy_cos", "power_roll_6", "power_roll_24", "wind_roll_6",
@@ -249,11 +253,13 @@ class DataAgent:
     def fetch_forecast(
         self, latitude: float, longitude: float, current_date: Any, horizon: int = 48,
     ) -> pd.DataFrame:
-        """Return [T, T+horizon) forecast covariates available no later than T.
+        """Return [T, T+horizon) covariates under a fixed-lead availability policy.
 
         N = ceil((valid_time - T + publication_lag) / 24h), at least one.
         The 8h default is a conservative operational assumption, not a provider
         guarantee of historical publication time. No reanalysis/live fallback.
+        Availability is conditional on the archive's documented lead convention
+        and this publication-lag assumption, not verified issue-time evidence.
         """
         cutoff = _utc_timestamp(current_date)
         if cutoff != cutoff.floor("h"):
@@ -311,3 +317,39 @@ class DataAgent:
             if os.path.exists(temporary_path):
                 os.unlink(temporary_path)
         return result
+
+
+def fetch_weather_forecast(
+    latitude: float,
+    longitude: float,
+    current_date: Any,
+    *,
+    horizon: int = 48,
+    cache_dir: Path | str = Path("data/weather"),
+    publication_lag_hours: float = 8,
+    agent: DataAgent | None = None,
+) -> pd.DataFrame:
+    """Fetch archived forecast features for an explicitly timezone-aware origin.
+
+    Uses Open-Meteo Previous Runs products from the historical forecast archive.
+    The stitched Historical Forecast series cannot reconstruct forecasts known
+    at an earlier origin. Each returned row includes inferred issue and
+    availability upper bounds; these depend on the documented fixed-lead
+    convention and the chosen publication lag, not exact publication records.
+
+    Weather responses are small CPU tables. SCADA ingestion and rolling feature
+    processing use ``DataAgent(backend="cudf")`` by default on NVIDIA systems.
+    For repeated calls, pass ``agent`` to reuse its HTTP session. When supplied,
+    that client's cache directory and publication lag apply; the corresponding
+    helper arguments configure only newly created clients.
+    """
+    if agent is not None:
+        return agent.fetch_forecast(latitude, longitude, current_date, horizon=horizon)
+    agent = DataAgent(
+        cache_dir=cache_dir, publication_lag_hours=publication_lag_hours,
+    )
+    try:
+        return agent.fetch_forecast(latitude, longitude, current_date, horizon=horizon)
+    finally:
+        if agent._http_session is not None:
+            agent._http_session.close()

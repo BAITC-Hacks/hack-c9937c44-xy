@@ -6,12 +6,15 @@ import shutil
 import unittest
 import uuid
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
 
-from data_agent import CSV_COLUMNS, DataAgent, HISTORY_FEATURES, WEATHER_FEATURES
+from data_agent import (
+    CSV_COLUMNS, DataAgent, HISTORY_FEATURES, WEATHER_FEATURES,
+    fetch_weather_forecast,
+)
 
 
 class DataAgentTests(unittest.TestCase):
@@ -124,6 +127,39 @@ class DataAgentTests(unittest.TestCase):
         self.assertEqual(params["models"], "gfs_global")
         self.assertEqual(params["wind_speed_unit"], "ms")
         self.assertNotIn("previous_day0", params["hourly"])
+
+    def test_function_entrypoint_preserves_availability_policy_and_cache(self):
+        cache_dir = self.directory / "function-weather"
+        with patch.object(DataAgent, "_request_json", return_value=self.payload()) as request:
+            first = fetch_weather_forecast(
+                51.04, 71.46, self.cutoff, horizon=24,
+                cache_dir=cache_dir, publication_lag_hours=32,
+            )
+            second = fetch_weather_forecast(
+                51.04, 71.46, self.cutoff, horizon=24,
+                cache_dir=cache_dir, publication_lag_hours=32,
+            )
+        request.assert_called_once()
+        pd.testing.assert_frame_equal(first, second)
+        self.assertEqual(len(first), 24)
+        self.assertEqual(first.attrs["publication_lag_hours"], 32)
+        self.assertEqual(first.iloc[0].lead_days, 2)
+        self.assertEqual(first.iloc[-1].lead_days, 3)
+        self.assertTrue((first.available_at_upper_bound <= self.cutoff).all())
+        self.assertEqual(request.call_args.args[0]["latitude"], 51.04)
+        self.assertEqual(request.call_args.args[0]["longitude"], 71.46)
+
+    def test_function_entrypoint_reuses_supplied_client_configuration(self):
+        self.agent.publication_lag_hours = 32
+        self.agent._http_session = Mock()
+        with patch.object(self.agent, "_request_json", return_value=self.payload()):
+            result = fetch_weather_forecast(
+                51.04, 71.46, self.cutoff, horizon=24, agent=self.agent,
+            )
+        self.assertEqual(result.attrs["publication_lag_hours"], 32)
+        self.assertEqual(result.iloc[-1].lead_days, 3)
+        self.assertTrue(self.agent.cache_dir.exists())
+        self.agent._http_session.close.assert_not_called()
 
     def test_cache_roundtrip_and_provenance_validation(self):
         with patch.object(self.agent, "_request_json", return_value=self.payload()) as request:
