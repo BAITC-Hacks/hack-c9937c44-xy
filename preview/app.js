@@ -309,6 +309,7 @@ function render() {
   setPressed("[data-horizon]", "horizon", state.horizon);
   setPressed("[data-turbine]", "turbine", state.turbine);
   drawMap();
+  document.dispatchEvent(new Event("forecast-frame"));
   drawSummary();
   drawChart("power");
   drawChart("wind");
@@ -358,7 +359,8 @@ document.querySelectorAll("[data-select]").forEach(button => button.addEventList
 $("source").addEventListener("change", () => { state.hour = 0; $("origin").replaceChildren(); loadSelection(); });
 $("origin").addEventListener("change", () => { state.hour = 0; loadSelection(); });
 $("date").addEventListener("change", () => { state.hour = 0; loadSelection(); });
-$("time-range").addEventListener("input", event => selectHour(Number(event.target.value), true));
+$("time-range").addEventListener("input", event => { stopPlayback(); selectHour(Number(event.target.value), true); });
+$("playback-speed").addEventListener("change", stopPlayback);
 $("previous-hour").addEventListener("click", () => { stopPlayback(); selectHour(state.hour - 1, true); });
 $("next-hour").addEventListener("click", () => { stopPlayback(); selectHour(state.hour + 1, true); });
 $("play-toggle").addEventListener("click", () => {
@@ -370,7 +372,7 @@ $("play-toggle").addEventListener("click", () => {
   state.timer = setInterval(() => {
     if (state.hour >= state.horizon - 1) { stopPlayback(); return; }
     selectHour(state.hour + 1);
-  }, 650);
+  }, Number($("playback-speed").value));
 });
 $("power-chart").addEventListener("pointermove", chartHour);
 $("wind-chart").addEventListener("pointermove", chartHour);

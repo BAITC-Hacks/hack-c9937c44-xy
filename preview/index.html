@@ -7,6 +7,8 @@
   <title>ALEM WIND — прогноз выработки ВЭС</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="economics.css">
+  <link rel="stylesheet" href="assets/maplibre-gl.css">
+  <link rel="stylesheet" href="map-ui.css">
   <style>[hidden] { display: none !important; }</style>
 </head>
 <body>
@@ -35,9 +37,11 @@
           <div class="inspector-source"><span>ИСТОЧНИК ПРОГНОЗА</span><strong id="source-title">Синтетический сценарий интерфейса</strong><small id="source-detail">Архив погоды и модель не запускались</small></div>
         </div>
 
-        <div class="map-column"><div class="site-map" id="site-map"><svg class="map-art" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="terrain" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#e9f1e9"/><stop offset="1" stop-color="#d7e6dc"/></linearGradient><pattern id="map-grid" width="58" height="58" patternUnits="userSpaceOnUse"><path d="M58 0H0V58" fill="none" stroke="#ffffff" stroke-opacity=".52" stroke-width="1"/></pattern></defs><rect width="1000" height="600" fill="url(#terrain)"/><path d="M-60 420 Q155 298 286 386 T658 283 T1070 224 L1070 650H-60Z" fill="#c8ddce" opacity=".72"/><path d="M-40 94 Q180 132 320 49 T695 127 T1070 38 V-40H-40Z" fill="#f4f7eb" opacity=".83"/><path d="M-25 316 C175 250 196 350 391 244 S669 282 1040 110" fill="none" stroke="#f9faf4" stroke-width="28" opacity=".8"/><path d="M-25 316 C175 250 196 350 391 244 S669 282 1040 110" fill="none" stroke="#b7cfbd" stroke-width="2" stroke-dasharray="7 10"/><g class="contours" fill="none" stroke="#a5c6ae" stroke-opacity=".54" stroke-width="2"><path d="M-45 469 Q110 395 259 450 T558 428 T1045 326"/><path d="M-65 501 Q111 427 258 482 T558 460 T1045 358"/><path d="M-65 533 Q111 459 258 514 T558 492 T1045 390"/><path d="M-65 565 Q111 491 258 546 T558 524 T1045 422"/><path d="M-28 135 Q148 185 286 113 T643 190 T1020 87"/><path d="M-28 104 Q148 154 286 82 T643 159 T1020 56"/></g><rect width="1000" height="600" fill="url(#map-grid)"/></svg>
-          <div class="map-topline"><div><span class="eyebrow">ПЛОЩАДКА / СХЕМА</span><strong>Две точки прогноза</strong><small>Положение условное; рельеф не моделируется</small></div><span class="map-north">N ↑</span></div><div class="turbine-link" aria-hidden="true"></div><button type="button" class="map-pin pin-1" id="pin-1" data-select="1" aria-label="Выбрать турбину 1"><span class="pin-core">01</span><span class="pin-label"><strong>WTG–001</strong><small id="pin-1-value">—</small></span></button><button type="button" class="map-pin pin-2" id="pin-2" data-select="2" aria-label="Выбрать турбину 2"><span class="pin-core">02</span><span class="pin-label"><strong>WTG–002</strong><small id="pin-2-value">—</small></span></button><div class="map-legend"><span class="legend-swatch"></span><span id="map-legend-label">Нормализованная мощность · p.u.</span></div><div class="map-scale">СХЕМА ПЛОЩАДКИ <span>•</span> НЕ ТОПОГРАФИЧЕСКАЯ КАРТА</div></div>
-          <div class="time-dock"><div class="time-dock-head"><div><span class="eyebrow">ПОЧАСОВАЯ ЛЕНТА</span><strong id="dock-time">—</strong></div><div class="dock-buttons"><button type="button" id="previous-hour" aria-label="Предыдущий час">‹</button><button type="button" id="play-toggle" aria-label="Запустить почасовое воспроизведение">▶</button><button type="button" id="next-hour" aria-label="Следующий час">›</button></div></div><input type="range" id="time-range" min="0" max="47" value="12" aria-label="Выбрать час прогноза"><div class="time-ticks"><span id="range-start">—</span><span id="range-middle">—</span><span id="range-end">—</span></div></div>
+        <div class="map-column"><div class="site-map" id="site-map"><div id="geographic-map" role="region" aria-label="Интерактивная карта турбин"></div>
+          <div class="map-topline"><div><span class="eyebrow">ГЕОГРАФИЯ / АСТАНА</span><strong>Две турбины · один прогноз</strong><small id="map-status" role="status">Загрузка карты…</small></div></div>
+          <div class="map-tools"><label class="sr-only" for="map-find">Найти турбину на карте</label><select id="map-find"><option value="both">Все турбины</option><option value="1">WTG–001</option><option value="2">WTG–002</option></select><button type="button" id="map-fit">⌖ Показать обе</button></div>
+          <div id="map-fallback"><button type="button" class="map-pin pin-1" id="pin-1" data-select="1" aria-label="Выбрать турбину 1"><span class="pin-core">01</span><span class="pin-label"><strong>WTG–001</strong><small id="pin-1-value">—</small></span></button><button type="button" class="map-pin pin-2" id="pin-2" data-select="2" aria-label="Выбрать турбину 2"><span class="pin-core">02</span><span class="pin-label"><strong>WTG–002</strong><small id="pin-2-value">—</small></span></button></div><div class="map-legend"><b>◔</b><span id="map-legend-label">Нормализованная мощность · p.u.</span><small>Заполнение кольца: 0 → <b id="map-scale-max">1 p.u.</b> · T1 зелёная / T2 синяя</small></div></div>
+          <div class="time-dock"><div class="time-dock-head"><div><span class="eyebrow">ПОЧАСОВАЯ ЛЕНТА</span><strong id="dock-time">—</strong></div><div class="dock-buttons"><button type="button" id="previous-hour" aria-label="Предыдущий час">‹</button><button type="button" id="play-toggle" aria-label="Запустить почасовое воспроизведение">▶</button><button type="button" id="next-hour" aria-label="Следующий час">›</button></div></div><input type="range" id="time-range" min="0" max="47" value="12" aria-label="Выбрать час прогноза"><div class="time-ticks"><span id="range-start">—</span><span id="range-middle">—</span><span id="range-end">—</span></div><div class="motion-control"><label><input id="map-motion" type="checkbox" checked> Анимация карты</label><label for="playback-speed">Скорость <select id="playback-speed"><option value="2000">0.5×</option><option value="1000" selected>1×</option><option value="500">2×</option></select></label></div></div>
         </div>
       </section>
 
@@ -97,8 +101,10 @@
     </main>
   </div>
   <div class="sr-only" role="status" aria-live="polite" id="status-text"></div>
+  <script src="assets/maplibre-gl.js"></script>
   <script src="evaluation.js"></script>
   <script src="app.js"></script>
+  <script src="map-ui.js"></script>
   <script src="economics-ui.js"></script>
   <script src="report-ui.js"></script>
 </body>
