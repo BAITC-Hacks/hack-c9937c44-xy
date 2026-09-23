@@ -20,6 +20,7 @@ The initial prototype is pushed. Start with [README.md](README.md) for the archi
 - `model_agent.py`: a joint two-turbine PyTorch encoder–decoder Transformer, CUDA/cuML feature normalization, and time-validated `train_model` / `predict` functions.
 - `validator_agent.py`: normalized power bounds and wind cut-in/cut-out checks.
 - `main_simulation.py`: daily February simulation, audit sidecars, checkpoints and cumulative `submission.csv`. `main.py` remains a compatible entrypoint.
+- `evaluate.py`: teammate's scoring module, integrated with the completed-run manifest; compares the model with persistence and a simple power curve using later observed SCADA.
 - `preview/`: standalone UI prototype. Its values are synthetic; it does not read model output or call the API.
 - `tests/`: CPU tests for chronology, data gaps, the model, validation, and simulation.
 
@@ -55,7 +56,7 @@ The sample command assumes the two CSVs keep their exact original Russian filena
 
 The cumulative CSV retains all forecast origins, including overlapping target hours. Only `status: completed` in `run.json` marks a completed run; a failure can leave a partial CSV whose completed origins are listed in the manifest.
 
-Latest local validation: 38 CPU tests passed, and the February offline demo completed all 28 origins with 2,688 rows for a 48-hour horizon. CUDA/cuDF/cuML execution and forecast accuracy remain unverified.
+Latest local validation: 41 CPU tests passed, and the February offline demo completed all 28 origins with 2,688 rows for a 48-hour horizon. CUDA/cuDF/cuML execution and forecast accuracy remain unverified. Evaluation requires a completed run with the current manifest format; regenerate older forecasts that lack completion metadata.
 
 ## Suggested next steps
 

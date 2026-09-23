@@ -22,6 +22,9 @@ class EvaluationTests(unittest.TestCase):
             (forecasts / "run.json").write_text(json.dumps({
                 "mode": "historical-backtest", "horizon_hours": 24,
                 "source_data_timezone": "UTC",
+                "status": "completed", "submission_complete": True,
+                "daily_files": ["forecast_20260130T0000Z.csv"],
+                "completed_origins": [origin.isoformat()],
             }))
             stem = forecasts / "forecast_20260130T0000Z"
             stem.with_suffix(".json").write_text(json.dumps({
@@ -38,6 +41,8 @@ class EvaluationTests(unittest.TestCase):
                         "wind_speed_ms": 10,
                     })
             pd.DataFrame(records).to_csv(stem.with_suffix(".csv"), index=False)
+            # Unlisted leftovers from a previous run must never enter scoring.
+            (forecasts / "forecast_20260129T0000Z.csv").write_text("stale,invalid\n")
             times = pd.date_range(origin - pd.Timedelta(hours=1), periods=25 * 6, freq="10min")
             power = np.where(times < origin, 0.2, 0.8)
             for turbine in ("turbine_1", "turbine_2"):
@@ -52,6 +57,23 @@ class EvaluationTests(unittest.TestCase):
             self.assertNotIn(6, result.lead_hour.to_list())
             self.assertTrue(np.allclose(result.model_mae, 0.3))
             self.assertTrue(np.allclose(result.persistence_mae, 0.6))
+
+            # Later truth may not have arrived yet, as with the supplied CSVs.
+            for turbine in ("turbine_1", "turbine_2"):
+                source = root / f"{turbine}.csv"
+                pd.read_csv(source).iloc[:6].to_csv(source, index=False)
+            with self.assertRaisesRegex(ValueError, "No observed forecast hours"):
+                evaluate(forecasts, [root / "turbine_1.csv", root / "turbine_2.csv"], "UTC")
+
+    def test_rejects_incomplete_run_before_loading_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "run.json").write_text(json.dumps({
+                "mode": "historical-backtest", "source_data_timezone": "UTC",
+                "status": "failed", "submission_complete": False,
+            }))
+            with self.assertRaisesRegex(ValueError, "Only completed runs"):
+                evaluate(root, [root / "t1.csv", root / "t2.csv"], "UTC")
 
     def test_rejects_demo_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:

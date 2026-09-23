@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from data_agent import DataAgent
-from main import TURBINES, _atomic_text, hour_index, utc_timestamp
+from main_simulation import TURBINES, _atomic_text, hour_index, utc_timestamp
 
 
 def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.DataFrame:
@@ -19,11 +19,26 @@ def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.
         raise ValueError("Only historical-backtest forecasts can be evaluated")
     if manifest.get("source_data_timezone") != data_timezone:
         raise ValueError("Evaluation timezone must match the forecast run")
+    if manifest.get("status") != "completed" or manifest.get("submission_complete") is not True:
+        raise ValueError("Only completed runs can be evaluated; rerun legacy or incomplete forecasts")
     if len(sources) != len(TURBINES):
         raise ValueError("Exactly two turbine CSVs are required")
-    paths = sorted(forecast_dir.glob("forecast_*.csv"))
-    if not paths:
-        raise ValueError("No forecast CSVs found")
+    names = manifest.get("daily_files")
+    if not isinstance(names, list) or not names:
+        raise ValueError("Completed run must list its daily forecast files")
+    if any(not isinstance(name, str) or Path(name).name != name
+           or "/" in name or "\\" in name
+           or not name.startswith("forecast_") or not name.endswith(".csv") for name in names):
+        raise ValueError("Daily forecast entries must be local CSV filenames")
+    if len(set(names)) != len(names):
+        raise ValueError("Duplicate daily forecast file in manifest")
+    paths = [forecast_dir / name for name in names]
+    completed = manifest.get("completed_origins")
+    if not isinstance(completed, list) or len(completed) != len(paths):
+        raise ValueError("Completed origins must match daily forecast files")
+    expected_origins = {utc_timestamp(value) for value in completed}
+    if len(expected_origins) != len(paths):
+        raise ValueError("Duplicate completed origin in manifest")
 
     forecasts = []
     origins = set()
@@ -58,6 +73,8 @@ def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.
             raise ValueError(f"Invalid forecast values: {path}")
         forecasts.append(frame)
 
+    if origins != expected_origins:
+        raise ValueError("Forecast origins do not match the completed run manifest")
     cutoff = max(origins) + pd.Timedelta(hours=horizon)
     agent = DataAgent(backend="pandas", data_timezone=data_timezone)
     histories = [agent.load_history(path, cutoff) for path in sources]
@@ -72,6 +89,8 @@ def evaluate(forecast_dir: Path, sources: list[Path], data_timezone: str) -> pd.
             part = frame.loc[frame.turbine_id == turbine.turbine_id].copy()
             part["observed"] = history.power.reindex(pd.DatetimeIndex(part.valid_time)).to_numpy()
             part = part.loc[part.observed.notna()]
+            if part.empty:
+                continue
             part["persistence"] = previous_power
             wind = part.wind_speed_ms.to_numpy()
             part["power_curve"] = np.where(
