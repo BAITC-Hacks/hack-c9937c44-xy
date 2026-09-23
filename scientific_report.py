@@ -26,6 +26,7 @@ from matplotlib.ticker import AutoMinorLocator
 import numpy as np
 
 from standards_profile import wind_standards_profile
+from economics import calculate_economics, economics_csv, economics_summary
 
 IDS = ("turbine_1", "turbine_2")
 COLORS = ("#177565", "#35649a")
@@ -271,7 +272,9 @@ def figures(forecast: Forecast, observed: np.ndarray | None):
         yield fig, "residuals", "Временная структура и распределение ошибок", "Положительная ошибка означает завышение прогноза. Пропуски измерений исключены; выборка ограничена выбранным горизонтом."
 
 
-def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | None = None) -> Path:
+def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | None = None, economic_settings: dict | None = None) -> Path:
+    economics = calculate_economics(forecast, economic_settings) if economic_settings is not None else None
+    economic_text = economics_summary(economics) if economics else []
     stats = statistics(forecast, observed)
     payload = forecast_csv(forecast)
     canonical = payload + json.dumps(forecast.audit, sort_keys=True, ensure_ascii=False, allow_nan=False)
@@ -279,7 +282,10 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
         canonical += json.dumps(np.where(np.isfinite(observed), observed, -1).tolist())
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     standards = wind_standards_profile()
-    report_digest = hashlib.sha256((canonical + json.dumps(standards, sort_keys=True, ensure_ascii=False)).encode("utf-8")).hexdigest()
+    report_canonical = canonical + json.dumps(standards, sort_keys=True, ensure_ascii=False)
+    if economics:
+        report_canonical += json.dumps(economics, sort_keys=True, ensure_ascii=False, allow_nan=False)
+    report_digest = hashlib.sha256(report_canonical.encode("utf-8")).hexdigest()
     report_id = f"forecast_{forecast.origin:%Y%m%dT%H%MZ}_{len(forecast.times)}h_{report_digest[:12]}"
     destination = output_root / report_id
     destination.mkdir(parents=True, exist_ok=True)
@@ -311,6 +317,8 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
                 "references": [{"title": "NREL: Fundamentals of Wind Energy", "url": "https://www.nrel.gov/docs/fy23osti/84501.pdf"}]
                               + [{"title": item["designation"], "url": item["source"]} for item in standards["selected"]],
                 "figures": [], "pdf": "report.pdf", "html": "report.html", "bundle": "report_bundle.zip"}
+    if economics:
+        metadata["economics"] = economics
     provenance = [
         ("Выпуск прогноза", forecast.origin.strftime("%d.%m.%Y %H:%M UTC")),
         ("Горизонт", f"{len(forecast.times)} ч · {len(forecast.times)*2} турбино-часов"),
@@ -345,6 +353,17 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
         cover.text(.075, .06, f"ID: {report_id} · значения округлены только для отображения", fontsize=8, color="#56636d")
         pdf.savefig(cover)
         plt.close(cover)
+        if economics:
+            business = plt.figure(figsize=(11.7, 8.3))
+            business.text(.075, .92, "Lost Energy Revenue / СЦЕНАРИЙ", fontsize=18, weight="bold")
+            y = .85
+            for paragraph in economic_text:
+                lines = textwrap.wrap(paragraph, 112)
+                business.text(.075, y, "\n".join(lines), fontsize=10, va="top", linespacing=1.5)
+                y -= .025 * len(lines) + .02
+            business.text(.075, .035, "Почасовой расчёт: economics.csv. Входные параметры и допущения: economics.json.", fontsize=9)
+            pdf.savefig(business)
+            plt.close(business)
         for number, (fig, name, title, caption) in enumerate(figures(forecast, observed), 1):
             fig.suptitle(f"Рисунок {number}. {title}", x=.075, ha="left", y=.97, fontsize=15, weight="bold")
             fig.text(.075, .92, f"{status} · выпуск {forecast.origin:%d.%m.%Y %H:%M} UTC · горизонт {len(forecast.times)} ч", fontsize=9, color="#52606b")
@@ -401,6 +420,7 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
 <h1>ALEM WIND / Научный отчёт</h1><p class="status">{status}</p><p><a class="download" href="report.pdf">PDF</a> · <a class="download" href="report_bundle.zip">Все файлы и графики</a></p><dl>{provenance_html}</dl>
 <table><thead><tr>{''.join(f'<th>{html.escape(c)}</th>' for c in columns)}</tr></thead><tbody>{cells}</tbody></table>
 <p>Фактических совпавших турбино-часов: {observed_n}. {'Точность не оценена.' if not observed_n else 'Метрики рассчитаны только по совпавшим значениям.'}</p>
+{'<h2>Lost Energy Revenue / Сценарий</h2>' if economics else ''}{''.join(f'<p>{html.escape(n)}</p>' for n in economic_text)}
 {''.join(svg_sections)}<h2>Методика и ограничения</h2><ol>{''.join(f'<li>{html.escape(n)}</li>' for n in notes)}</ol>
 <h2>Нормативная основа ВЭС</h2><p>{html.escape(standards['statement'])}</p><ul>{standards_html}</ul>
 <p>Для дальнейшего применения:</p><ol>{''.join(f'<li>{html.escape(n)}</li>' for n in standards['open_items'])}</ol>
@@ -418,6 +438,10 @@ def make_report(forecast: Forecast, output_root: Path, observed: np.ndarray | No
     (destination / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
     (destination / "standards.json").write_text(json.dumps(standards, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
     names = ["report.pdf", "report.html", "forecast.csv", "metadata.json", "standards.json"]
+    if economics:
+        (destination / "economics.json").write_text(json.dumps(economics, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+        (destination / "economics.csv").write_text(economics_csv(economics), encoding="utf-8")
+        names += ["economics.json", "economics.csv"]
     names += [figure[extension] for figure in metadata["figures"] for extension in ("svg", "png")]
     if observed is not None:
         names.append("observations.csv")

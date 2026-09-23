@@ -50,11 +50,13 @@
     button.textContent = "Формируем рисунки…";
     status.textContent = "Подготовка PDF, векторных рисунков и исходных данных…";
     try {
+      const economics = window.economicSettings?.();
       let response;
       try {
         response = await fetch("/api/report", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ source: $("source").value, date: $("date").value,
+            economics,
             origin: $("source").value === "synthetic" ? undefined : state.audit?.forecast_origin,
             horizon: state.horizon, rows: $("source").value === "synthetic" ? state.rows : undefined }),
         });
@@ -115,5 +117,6 @@
     }
   });
   document.addEventListener("forecast-updated", reset);
+  document.addEventListener("economics-updated", reset);
   reset();
 })();

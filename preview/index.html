@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#f6f8f6">
   <title>ALEM WIND — прогноз выработки ВЭС</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="economics.css">
   <style>[hidden] { display: none !important; }</style>
 </head>
 <body>
@@ -13,7 +14,7 @@
     <aside class="rail" aria-label="Основная навигация">
       <a class="brand" href="#forecast" aria-label="ALEM WIND — к прогнозу"><span class="brand-mark" aria-hidden="true">✳</span><span>ALEM <strong>WIND</strong><small>ENERGY INTELLIGENCE</small></span></a>
       <div class="rail-label">РАБОЧАЯ ОБЛАСТЬ</div>
-      <nav class="nav-links"><a class="current" href="#forecast"><span aria-hidden="true">◫</span> Обзор</a><a href="#analysis"><span aria-hidden="true">⌁</span> Прогноз</a><a href="#turbines"><span aria-hidden="true">⚑</span> Турбины</a><a href="#reports"><span aria-hidden="true">▧</span> Научные отчёты</a><a href="#audit"><span aria-hidden="true">▤</span> Данные и расчёт</a></nav>
+      <nav class="nav-links"><a class="current" href="#forecast"><span aria-hidden="true">◫</span> Обзор</a><a href="#analysis"><span aria-hidden="true">⌁</span> Прогноз</a><a href="#turbines"><span aria-hidden="true">⚑</span> Турбины</a><a href="#economics"><span aria-hidden="true">₸</span> Экономика</a><a href="#reports"><span aria-hidden="true">▧</span> Научные отчёты</a><a href="#audit"><span aria-hidden="true">▤</span> Данные и расчёт</a></nav>
       <div class="rail-bottom"><span class="rail-live"><i></i> ИСТОРИЧЕСКАЯ СИМУЛЯЦИЯ</span><p>Даты из сохранённых выпусков</p><div class="rail-divider"></div><strong>HackAlem AI</strong><small>Трек 01 · Энергетика</small></div>
     </aside>
 
@@ -38,6 +39,33 @@
           <div class="map-topline"><div><span class="eyebrow">ПЛОЩАДКА / СХЕМА</span><strong>Две точки прогноза</strong><small>Положение условное; рельеф не моделируется</small></div><span class="map-north">N ↑</span></div><div class="turbine-link" aria-hidden="true"></div><button type="button" class="map-pin pin-1" id="pin-1" data-select="1" aria-label="Выбрать турбину 1"><span class="pin-core">01</span><span class="pin-label"><strong>WTG–001</strong><small id="pin-1-value">—</small></span></button><button type="button" class="map-pin pin-2" id="pin-2" data-select="2" aria-label="Выбрать турбину 2"><span class="pin-core">02</span><span class="pin-label"><strong>WTG–002</strong><small id="pin-2-value">—</small></span></button><div class="map-legend"><span class="legend-swatch"></span><span id="map-legend-label">Нормализованная мощность · p.u.</span></div><div class="map-scale">СХЕМА ПЛОЩАДКИ <span>•</span> НЕ ТОПОГРАФИЧЕСКАЯ КАРТА</div></div>
           <div class="time-dock"><div class="time-dock-head"><div><span class="eyebrow">ПОЧАСОВАЯ ЛЕНТА</span><strong id="dock-time">—</strong></div><div class="dock-buttons"><button type="button" id="previous-hour" aria-label="Предыдущий час">‹</button><button type="button" id="play-toggle" aria-label="Запустить почасовое воспроизведение">▶</button><button type="button" id="next-hour" aria-label="Следующий час">›</button></div></div><input type="range" id="time-range" min="0" max="47" value="12" aria-label="Выбрать час прогноза"><div class="time-ticks"><span id="range-start">—</span><span id="range-middle">—</span><span id="range-end">—</span></div></div>
         </div>
+      </section>
+
+      <section class="economics" id="economics" aria-labelledby="economics-title">
+        <div class="section-heading"><div><span class="eyebrow">ЭНЕРГИЯ → ДЕНЬГИ → РЕШЕНИЕ</span><h2 id="economics-title">Lost Energy Revenue</h2><p>Риск недополученной выручки относительно плана отпуска</p></div><span class="economics-label">СЦЕНАРИЙ · НЕ ФАКТИЧЕСКИЙ УБЫТОК</span></div>
+        <form id="economics-form">
+          <div class="economic-actions"><label><input id="eco-enabled" type="checkbox" checked> Рассчитывать экономику обеих турбин</label></div>
+          <details open><summary>Мощность, план и тариф</summary>
+            <div class="economic-fields">
+              <label for="eco-capacity_1_mw">Номинальная мощность T1 · МВт<input id="eco-capacity_1_mw" type="number" min="0.001" max="100000" step="any" value="2" required></label>
+              <label for="eco-capacity_2_mw">Номинальная мощность T2 · МВт<input id="eco-capacity_2_mw" type="number" min="0.001" max="100000" step="any" value="2" required></label>
+              <label for="eco-plan_mw">Постоянный план отпуска · МВт<input id="eco-plan_mw" type="number" min="0" max="200000" step="any" value="3" required></label>
+              <label for="eco-tariff_kzt_kwh">Тариф продажи · ₸/кВт·ч без НДС<input id="eco-tariff_kzt_kwh" type="number" min="0" max="1000000" step="any" value="25" required></label>
+              <label class="wide" for="eco-tariff_note">Источник и дата тарифа / допущение<input id="eco-tariff_note" type="text" maxlength="160" value="Демо: 25 ₸/кВт·ч, не текущий тариф ВЭС" required></label>
+              <label for="eco-advance_kzt_kwh">Закупка заранее · ₸/кВт·ч<input id="eco-advance_kzt_kwh" type="number" min="0" max="1000000" step="any" placeholder="Не задана"></label>
+              <label for="eco-balancing_kzt_kwh">Балансирование · ₸/кВт·ч<input id="eco-balancing_kzt_kwh" type="number" min="0" max="1000000" step="any" placeholder="Не задана"></label>
+            </div>
+            <p class="economic-note">Начальные параметры иллюстративные: T1/T2 по 2 МВт, план 3 МВт, тариф 25 ₸. Допущение: 1 p.u. = номинальная мощность. Подтвердите базу нормировки и замените параметры данными ВЭС. Все цены — без НДС, без комиссий.</p>
+          </details>
+          <div class="economic-actions"><button type="submit">Пересчитать</button><button type="button" id="economics-download" disabled>Скачать расчёт · JSON ↓</button></div>
+        </form>
+        <p id="economics-status" role="status" aria-live="polite">Загрузите прогноз для расчёта.</p>
+        <div id="economics-result" hidden>
+          <div class="economic-kpis"><article><span>Прогноз энергии</span><strong id="eco-forecast">—</strong><small id="eco-plan">—</small></article><article><span>Недобор относительно плана</span><strong id="eco-shortfall">—</strong><small id="eco-kwh">—</small></article><article><span>Lost Energy Revenue</span><strong id="eco-revenue">—</strong><small>₸ без НДС · риск выручки</small></article></div>
+          <div class="economic-agent"><span class="eyebrow">АГЕНТ / ЭКОНОМИЧЕСКИЙ СЦЕНАРИЙ</span><p id="eco-agent"></p><p id="eco-procurement"></p></div>
+          <details><summary>Почасовой расчёт · обе турбины</summary><div class="table-scroll"><table><thead><tr><th>Час UTC</th><th>Прогноз · МВт</th><th>План · МВт</th><th>Недобор · МВт·ч</th><th>Риск выручки · ₸</th></tr></thead><tbody id="eco-hourly"></tbody></table></div></details>
+        </div>
+        <details><summary>Как получены деньги и рекомендация</summary><p class="economic-note">За каждый час: max(план − прогноз, 0) × 1 ч. Lost Energy Revenue = сумма недобора × 1000 × тариф. Избыток другого часа не компенсирует дефицит без накопителя. Экономия закупки считается отдельно и не складывается с риском выручки. Текст агента формируется из этих расчётов; заявки на рынок не отправляются.</p><p class="economic-note">Ветер 10 м не подтверждает остановку ротора из-за штиля или шторма. Причина недобора требует данных оборудования. Цена продажи зависит от договора: <a href="https://rfc.kz/ru/res-sector/prices/fixed-rates/" target="_blank" rel="noopener">РФЦ по ВИЭ</a>. Балансирующая энергия рассчитывается отдельно: <a href="https://www.korem.kz/ru/page/usl-raschetnyy-centr-bre" target="_blank" rel="noopener">KOREM</a>. Проверено 23.09.2026; live-котировки не подключены.</p></details>
       </section>
 
       <section class="analytics" id="analysis"><div class="section-heading"><div><span class="eyebrow">АНАЛИТИКА / 24–48 ЧАСОВ</span><h2>Траектория прогноза</h2><p id="range-label">—</p></div><div class="segmented turbine-switch" role="group" aria-label="Турбины на графиках"><button type="button" data-turbine="both" class="active" aria-pressed="true">Обе</button><button type="button" data-turbine="1" aria-pressed="false">T1</button><button type="button" data-turbine="2" aria-pressed="false">T2</button></div></div><div class="kpi-grid"><article><span>Средняя мощность</span><strong id="avg-power">—</strong><small>p.u. · выбранные турбины</small></article><article><span>Пиковая мощность</span><strong id="peak-power">—</strong><small id="peak-time">—</small></article><article><span>Средний ветер</span><strong id="avg-wind">—</strong><small>м/с · прогноз</small></article><article><span>Остановка по порогу</span><strong id="shutdown-hours">—</strong><small id="shutdown-detail">турбино-часов в горизонте</small></article></div><div class="charts"><div class="chart-title"><div><h3>Нормализованная мощность</h3><span>p.u. · почасовой прогноз</span></div><div class="legend"><span><i class="line-key teal"></i> T1</span><span><i class="line-key blue"></i> T2</span><span><i class="line-key selected-key"></i> Выбранный час</span></div></div><p class="panel-foot" id="comparison-legend" hidden>Цвет: T1 — зелёный, T2 — синий. Сплошная — модель; штриховая — факт; точечная — persistence прошлого часа. Пропуски — разрывы.</p><div id="power-chart" class="chart chart-power" role="img" aria-label="Демонстрационный почасовой прогноз мощности для двух турбин"></div><div class="chart-title wind-title"><div><h3>Прогноз скорости ветра</h3><span>м/с · тот же часовой масштаб</span></div><span class="threshold-note" id="threshold-note">Пороги: 3 / 25 м/с</span></div><div id="wind-chart" class="chart chart-wind" role="img" aria-label="Демонстрационный прогноз скорости ветра для двух турбин"></div></div></section>
@@ -71,6 +99,7 @@
   <div class="sr-only" role="status" aria-live="polite" id="status-text"></div>
   <script src="evaluation.js"></script>
   <script src="app.js"></script>
+  <script src="economics-ui.js"></script>
   <script src="report-ui.js"></script>
 </body>
 </html>

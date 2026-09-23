@@ -14,6 +14,7 @@ import re
 from urllib.parse import unquote, urlsplit
 
 from scientific_report import load_forecast, load_observations, make_report, timestamp, validate_forecast
+from economics import calculate_economics
 
 ROOT = Path(__file__).resolve().parent
 
@@ -96,7 +97,7 @@ class Handler(SimpleHTTPRequestHandler):
         return super().send_head()
 
     def do_POST(self):
-        if self.path != "/api/report":
+        if self.path not in ("/api/report", "/api/economics"):
             self.json_response(404, {"error": "Unknown endpoint"})
             return
         port = self.server.server_port
@@ -111,7 +112,10 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ValueError("Expected application/json, maximum 128 KB")
             payload = json.loads(self.rfile.read(length))
             source, forecast, observed = report_input(payload)
-            folder = make_report(forecast, ROOT / "outputs" / "reports" / source, observed)
+            if self.path == "/api/economics":
+                self.json_response(200, calculate_economics(forecast, payload.get("economics")))
+                return
+            folder = make_report(forecast, ROOT / "outputs" / "reports" / source, observed, payload.get("economics"))
             metadata = json.loads((folder / "metadata.json").read_text(encoding="utf-8"))
             self.json_response(200, {"base_url": "/" + folder.relative_to(ROOT).as_posix() + "/", "report": metadata})
         except (ValueError, KeyError, TypeError, OverflowError) as exc:

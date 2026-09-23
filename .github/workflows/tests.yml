@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: '22'
       - run: node tests/report-ui.test.cjs
+      - run: node tests/economics-ui.test.cjs
       - run: node tests/test_preview.cjs
       - run: python verify_results.py
       - run: python -m pip install -r requirements-reports.txt

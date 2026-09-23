@@ -212,6 +212,9 @@
     "data/weather/ff1a0014bf34649cdb1c337eb98faffab19a2a6f5c0e7357a0f5b961773e5dcf.json": "a289003abea496e48ac78804d9b026c91bdcc658c3336d91e2d22ba4c102eaf3",
     "outputs/observations.csv": "5647135ac5534fb21dcaf049d9fc54dfd7fad53cbb1baa59e6ccdc4d080ec291",
     "outputs/evidence/gpu-report-20260129.pdf": "fddb1b86cc7fd203b96c577e02cdaed95238443fee85c7779006ebaa6eaf95d2",
-    "outputs/evidence/gpu-report-20260129.zip": "f23b377bf591fc9db28e8ee4622e9aa15f90d3d6de7e62be95fb1f78e175bddc"
+    "outputs/evidence/gpu-report-20260129.zip": "f23b377bf591fc9db28e8ee4622e9aa15f90d3d6de7e62be95fb1f78e175bddc",
+    "outputs/evidence/economics-example.json": "d9deb05411d3032f554f375b8db6ecdb3508cd25306f2598f98a0d0536f0efdd",
+    "outputs/evidence/economics-example.pdf": "df28b45842ac7dbcbb5e61d0fb2d353aa78207ee775df9c6fb396030b735072c",
+    "outputs/evidence/economics-example.zip": "eca22aaee15c6ceb793535a8e535763c9784483364e4c543442a18c0ab96257f"
   }
 }

@@ -15,7 +15,7 @@ class Element {
   removeAttribute(name) { delete this[name]; }
 }
 
-function harness(fetch, url = "http://127.0.0.1:8767/preview/#reports") {
+function harness(fetch, url = "http://127.0.0.1:8767/preview/#reports", economicSettings) {
   const elements = new Map();
   const $ = id => {
     if (!elements.has(id)) elements.set(id, new Element());
@@ -26,14 +26,27 @@ function harness(fetch, url = "http://127.0.0.1:8767/preview/#reports") {
   const events = {};
   const state = { rows: [{ time: "2026-02-14T00:00:00Z", power: 0.5 }], horizon: 48 };
   vm.runInNewContext(script, {
-    fetch, state, $, TypeError, window: { location: new URL(url) },
+    fetch, state, $, TypeError, window: { location: new URL(url), economicSettings },
     document: {
       getElementById: $, createElement: () => new Element(),
       addEventListener: (name, handler) => { events[name] = handler; },
     },
   });
-  return { $, state, click: () => $("generate-report").listeners.click(), reset: events["forecast-updated"] };
+  return { $, state, events, click: () => $("generate-report").listeners.click(), reset: events["forecast-updated"] };
 }
+
+test("report sends economic assumptions and discards a response after tariff changes", async () => {
+  const pending = deferred();
+  let payload;
+  const ui = harness(async (_, options) => { payload = JSON.parse(options.body); return pending.promise; }, undefined,
+    () => ({ tariff_kzt_kwh: 25, tariff_note: "demo" }));
+  const request = ui.click();
+  assert.equal(payload.economics.tariff_kzt_kwh, 25);
+  ui.events["economics-updated"]();
+  pending.resolve(response());
+  await request;
+  assert.equal(ui.$("report-result").hidden, true);
+});
 
 function response({ ok = true, status = 200, body = null, contentType = "application/json" } = {}) {
   return {

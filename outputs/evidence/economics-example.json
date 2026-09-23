@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "status": "scenario",
+  "forecast_origin": "2026-01-29T00:00:00+00:00",
+  "forecast_mode": "historical-backtest",
+  "horizon_hours": 24,
+  "interval_hours": 1,
+  "currency": "KZT",
+  "vat_included": false,
+  "live_market_prices": false,
+  "order_placed": false,
+  "inputs": {
+    "capacity_1_mw": 2.0,
+    "capacity_2_mw": 2.0,
+    "plan_mw": 3.0,
+    "tariff_kzt_kwh": 25.0,
+    "tariff_note": "Демо: продажа 25; закупка 15/30 ₸/кВт·ч. Не реальные котировки.",
+    "advance_kzt_kwh": 15.0,
+    "balancing_kzt_kwh": 30.0
+  },
+  "totals": {
+    "forecast_mwh": 31.1181198,
+    "shortfall_mwh": 40.8818802,
+    "surplus_mwh": 0.0,
+    "lost_energy_revenue_kzt": 1022047.005,
+    "planned_mwh": 72.0,
+    "shortfall_kwh": 40881.8802,
+    "shortfall_hours": 24,
+    "peak_shortfall_mw": 1.9075856
+  },
+  "procurement": {
+    "advance_cost_kzt": 613228.203,
+    "balancing_cost_kzt": 1226456.406,
+    "potential_saving_kzt": 613228.203
+  },
+  "recommendation": "Прогнозируется недобор 40.88 МВт·ч относительно заданного плана за 24 ч. Под риском 1,022,047 ₸ выручки. Рассмотрите предварительную закупку энергии для часов дефицита: при заданных ценах разница затрат составит 613,228 ₸. Перед решением подтвердите котировку, почасовой объём и условия договора.",
+  "methodology": [
+    "Сценарная оценка, не фактический убыток и не подтверждённый дефицит энергосистемы. Охват: обе турбины.",
+    "Допущение: 1 p.u. соответствует введённой номинальной мощности. База нормировки SCADA и номиналы требуют подтверждения.",
+    "P = p.u.(T1) × номинал T1 + p.u.(T2) × номинал T2; E = P × 1 ч. План отпуска постоянный на весь горизонт.",
+    "Недобор = сумма max(план − прогноз, 0) × 1 ч. Избыток в другом часу не компенсирует дефицит без накопителя.",
+    "Lost Energy Revenue = недобор МВт·ч × 1000 × тариф ₸/кВт·ч. Это риск выручки относительно плана, не потеря относительно полной мощности.",
+    "Цена продажи и цены закупки задаются пользователем без НДС; котировки не загружаются. Исторический прогноз оценивается по заданному сценарию тарифа.",
+    "Разница затрат на закупку не складывается с Lost Energy Revenue. Комиссии, штрафы, потери сети, ограничения рынка и ошибка прогноза не моделируются.",
+    "Ветер на высоте 10 м не доказывает штиль/шторм на роторе. Причина недобора не установлена; мощность прогноза повторно по ветру не обнуляется."
+  ],
+  "rows": [
+    {
+      "valid_time": "2026-01-29T00:00:00+00:00",
+      "forecast_mw": 1.359515,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.359515,
+      "shortfall_mwh": 1.640485,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 41012.125
+    },
+    {
+      "valid_time": "2026-01-29T01:00:00+00:00",
+      "forecast_mw": 1.300289,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.300289,
+      "shortfall_mwh": 1.699711,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 42492.775
+    },
+    {
+      "valid_time": "2026-01-29T02:00:00+00:00",
+      "forecast_mw": 1.2972890000000001,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.2972890000000001,
+      "shortfall_mwh": 1.7027109999999999,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 42567.774999999994
+    },
+    {
+      "valid_time": "2026-01-29T03:00:00+00:00",
+      "forecast_mw": 1.2962092,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.2962092,
+      "shortfall_mwh": 1.7037908,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 42594.77
+    },
+    {
+      "valid_time": "2026-01-29T04:00:00+00:00",
+      "forecast_mw": 1.2163996,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.2163996,
+      "shortfall_mwh": 1.7836004,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 44590.01
+    },
+    {
+      "valid_time": "2026-01-29T05:00:00+00:00",
+      "forecast_mw": 1.1689438,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1689438,
+      "shortfall_mwh": 1.8310562,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 45776.405
+    },
+    {
+      "valid_time": "2026-01-29T06:00:00+00:00",
+      "forecast_mw": 1.1166582,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1166582,
+      "shortfall_mwh": 1.8833418,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 47083.545
+    },
+    {
+      "valid_time": "2026-01-29T07:00:00+00:00",
+      "forecast_mw": 1.0924144,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.0924144,
+      "shortfall_mwh": 1.9075856,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 47689.64
+    },
+    {
+      "valid_time": "2026-01-29T08:00:00+00:00",
+      "forecast_mw": 1.1137126,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1137126,
+      "shortfall_mwh": 1.8862874,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 47157.185000000005
+    },
+    {
+      "valid_time": "2026-01-29T09:00:00+00:00",
+      "forecast_mw": 1.14486,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.14486,
+      "shortfall_mwh": 1.85514,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 46378.5
+    },
+    {
+      "valid_time": "2026-01-29T10:00:00+00:00",
+      "forecast_mw": 1.1581000000000001,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1581000000000001,
+      "shortfall_mwh": 1.8418999999999999,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 46047.5
+    },
+    {
+      "valid_time": "2026-01-29T11:00:00+00:00",
+      "forecast_mw": 1.1660284,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1660284,
+      "shortfall_mwh": 1.8339716,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 45849.28999999999
+    },
+    {
+      "valid_time": "2026-01-29T12:00:00+00:00",
+      "forecast_mw": 1.1819928,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1819928,
+      "shortfall_mwh": 1.8180072,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 45450.18
+    },
+    {
+      "valid_time": "2026-01-29T13:00:00+00:00",
+      "forecast_mw": 1.1629483999999999,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1629483999999999,
+      "shortfall_mwh": 1.8370516000000001,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 45926.29
+    },
+    {
+      "valid_time": "2026-01-29T14:00:00+00:00",
+      "forecast_mw": 1.1970045999999999,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.1970045999999999,
+      "shortfall_mwh": 1.8029954000000001,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 45074.88500000001
+    },
+    {
+      "valid_time": "2026-01-29T15:00:00+00:00",
+      "forecast_mw": 1.207222,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.207222,
+      "shortfall_mwh": 1.792778,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 44819.45
+    },
+    {
+      "valid_time": "2026-01-29T16:00:00+00:00",
+      "forecast_mw": 1.2046071999999999,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.2046071999999999,
+      "shortfall_mwh": 1.7953928000000001,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 44884.82
+    },
+    {
+      "valid_time": "2026-01-29T17:00:00+00:00",
+      "forecast_mw": 1.364252,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.364252,
+      "shortfall_mwh": 1.635748,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 40893.700000000004
+    },
+    {
+      "valid_time": "2026-01-29T18:00:00+00:00",
+      "forecast_mw": 1.4662883999999998,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.4662883999999998,
+      "shortfall_mwh": 1.5337116000000002,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 38342.79
+    },
+    {
+      "valid_time": "2026-01-29T19:00:00+00:00",
+      "forecast_mw": 1.5775308,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.5775308,
+      "shortfall_mwh": 1.4224692,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 35561.73
+    },
+    {
+      "valid_time": "2026-01-29T20:00:00+00:00",
+      "forecast_mw": 1.612594,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.612594,
+      "shortfall_mwh": 1.387406,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 34685.15
+    },
+    {
+      "valid_time": "2026-01-29T21:00:00+00:00",
+      "forecast_mw": 1.5953857999999999,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.5953857999999999,
+      "shortfall_mwh": 1.4046142000000001,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 35115.355
+    },
+    {
+      "valid_time": "2026-01-29T22:00:00+00:00",
+      "forecast_mw": 1.5842198,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.5842198,
+      "shortfall_mwh": 1.4157802,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 35394.505
+    },
+    {
+      "valid_time": "2026-01-29T23:00:00+00:00",
+      "forecast_mw": 1.5336547999999999,
+      "plan_mw": 3.0,
+      "forecast_mwh": 1.5336547999999999,
+      "shortfall_mwh": 1.4663452000000001,
+      "surplus_mwh": 0.0,
+      "lost_energy_revenue_kzt": 36658.630000000005
+    }
+  ],
+  "scenario_sha256": "1ef04ad810203a7c0c6f3969210fdd88fd824075bd867360b8aac93dc04451a3"
+}

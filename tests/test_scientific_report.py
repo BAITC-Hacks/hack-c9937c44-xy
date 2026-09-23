@@ -11,6 +11,7 @@ import numpy as np
 from scientific_report import figures, forecast_csv, load_observations, make_report, statistics, validate_forecast
 from serve_preview import report_input
 from standards_profile import wind_standards_profile
+from economics import calculate_economics
 
 
 def fixture(demo=False, horizon=24):
@@ -24,7 +25,70 @@ def fixture(demo=False, horizon=24):
     return records, audit
 
 
+def economic_settings(**changes):
+    return {"capacity_1_mw": 2, "capacity_2_mw": 3, "plan_mw": 4,
+            "tariff_kzt_kwh": 25, "tariff_note": "Демо, не рыночный тариф", **changes}
+
+
 class ReportTests(unittest.TestCase):
+    def test_economics_units_plan_and_procurement(self):
+        data = validate_forecast(*fixture())
+        result = calculate_economics(data, economic_settings(advance_kzt_kwh=10, balancing_kzt_kwh=15))
+        self.assertAlmostEqual(result["totals"]["forecast_mwh"], 55.2)
+        self.assertAlmostEqual(result["totals"]["shortfall_mwh"], 40.8)
+        self.assertAlmostEqual(result["totals"]["shortfall_kwh"], 40800)
+        self.assertAlmostEqual(result["totals"]["lost_energy_revenue_kzt"], 1020000)
+        self.assertAlmostEqual(result["procurement"]["potential_saving_kzt"], 204000)
+        self.assertFalse(result["order_placed"])
+        self.assertEqual(result["status"], "scenario")
+        higher = calculate_economics(data, economic_settings(advance_kzt_kwh=20, balancing_kzt_kwh=15))
+        self.assertLess(higher["procurement"]["potential_saving_kzt"], 0)
+        self.assertIn("не дешевле", higher["recommendation"])
+
+    def test_economics_does_not_net_hours_or_invent_weather_shutdowns(self):
+        data = validate_forecast(*fixture())
+        data.power[:] = 1
+        data.power[0] = 0
+        data.wind[:] = 100  # Wind at 10 m must not override the saved power forecast.
+        result = calculate_economics(data, economic_settings(plan_mw=2.5))
+        self.assertAlmostEqual(result["totals"]["forecast_mwh"], 115)
+        self.assertAlmostEqual(result["totals"]["shortfall_mwh"], 2.5)
+        self.assertAlmostEqual(result["totals"]["surplus_mwh"], 57.5)
+        self.assertIsNone(result["procurement"])
+        self.assertIn("не определена", result["recommendation"])
+        no_plan = calculate_economics(data, economic_settings(plan_mw=0, tariff_kzt_kwh=0))
+        self.assertEqual(no_plan["totals"]["lost_energy_revenue_kzt"], 0)
+        self.assertIn("Оснований для закупки", no_plan["recommendation"])
+
+    def test_economics_rejects_invalid_inputs_and_hashes_assumptions(self):
+        data = validate_forecast(*fixture(horizon=48))
+        for change in ({"capacity_1_mw": 0}, {"plan_mw": 6}, {"tariff_kzt_kwh": -1},
+                       {"tariff_kzt_kwh": float("nan")}, {"plan_mw": True}, {"tariff_note": ""},
+                       {"advance_kzt_kwh": 1}, {"balancing_kzt_kwh": float("inf")}, {"capacity_2_mw": None}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                calculate_economics(data, economic_settings(**change))
+        first = calculate_economics(data, economic_settings())
+        second = calculate_economics(data, economic_settings(tariff_kzt_kwh=50))
+        self.assertEqual(len(first["rows"]), 48)
+        self.assertAlmostEqual(first["totals"]["shortfall_mwh"], 81.6)
+        self.assertNotEqual(first["scenario_sha256"], second["scenario_sha256"])
+
+    def test_economics_report_preserves_inputs_csv_and_hashes(self):
+        data = validate_forecast(*fixture())
+        with tempfile.TemporaryDirectory() as directory:
+            report = make_report(data, Path(directory), economic_settings=economic_settings(tariff_note="<script>demo</script>"))
+            metadata = json.loads((report / "metadata.json").read_text())
+            self.assertAlmostEqual(metadata["economics"]["totals"]["lost_energy_revenue_kzt"], 1020000)
+            page = (report / "report.html").read_text()
+            self.assertIn("Lost Energy Revenue", page)
+            self.assertIn("&lt;script&gt;demo&lt;/script&gt;", page)
+            with zipfile.ZipFile(report / "report_bundle.zip") as archive:
+                self.assertIn("economics.csv", archive.namelist())
+                self.assertEqual(json.loads(archive.read("economics.json")), metadata["economics"])
+                for line in archive.read("SHA256SUMS.txt").decode().splitlines():
+                    expected, name = line.split("  ", 1)
+                    self.assertEqual(hashlib.sha256(archive.read(name)).hexdigest(), expected)
+
     def test_standards_profile_is_for_wind_and_does_not_claim_conformity(self):
         profile = wind_standards_profile()
         self.assertEqual(profile["equipment"], "wind_turbine")
