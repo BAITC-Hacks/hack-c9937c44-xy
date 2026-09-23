@@ -1,0 +1,41 @@
+{
+  "checked_at_utc": "2026-09-23T12:42:07Z",
+  "base_url": "http://127.0.0.1:8088",
+  "health": "ok",
+  "private_paths": "404",
+  "run_manifests": [
+    "backtest",
+    "replay",
+    "rolling-january",
+    "gpu-check",
+    "rolling-january-gpu",
+    "demo"
+  ],
+  "economics_matches_reference": true,
+  "report_seconds": 41.37,
+  "report_base_url": "/outputs/reports/rolling-january-gpu/forecast_20260129T0000Z_24h_9e76721567e6/",
+  "n_observed": 48,
+  "figures": 6,
+  "pdf_bytes": 94502,
+  "pdf_sha256": "34156d7bdc1333d69cd0aa8f2ad25df88d13e5b68d599d5b9209b04c0d95d50e",
+  "zip_bytes": 1502942,
+  "zip_sha256": "9b021aaab6d3fd3068c33ef54e34f02a846ea995f67c996f66e5283b80ac2278",
+  "zip_hashes_verified": true,
+  "source_sha256": {
+    "Dockerfile": "32e0b8c3b89c3ae8c3e115c58f25995242127f1b1d20e3c436b7f9952cf42369",
+    ".dockerignore": "23a499aa5a4edca874e8c4b3c76592b513a302cd444eb03f70442a02f74e4524",
+    "web_app.py": "0a650650157db8521324baeccf440522f8dd0037c6565d8237faa6d31c0da210",
+    "serve_preview.py": "e57ef1be9f2fb834f7ba80e1d30935030316cd4f4b29169fdcea1453eda6c642",
+    "gunicorn.conf.py": "a9894d76109f96b8f1e83c0929e58efc2150ae8f6aa66ddf32e638c9a8b84391",
+    "requirements-web.txt": "bce886903c167573c059fa26e62026736bdbfd13c6518819f8c8aa393b249d34",
+    "compose.yaml": "eb45520dcc439d391c160c290dbc6c620c4e3a4d7597b526ce7d9a58f201615c",
+    "render.yaml": "a406c184167d1137bcf08102912ab3dc7a1da25a864ba5cf20ef687c70d8f2f5"
+  },
+  "container_image_id": "sha256:ed195e1172085d4f8d9d7557e66502f9fbbb545c87b4ec765cf4699633978732",
+  "platform": "linux/amd64",
+  "memory_limit_bytes": 536870912,
+  "memory_peak_bytes": 362414080,
+  "container_user": "app",
+  "read_only_root": true,
+  "private_paths_excluded_from_image": true
+}
