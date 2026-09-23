@@ -19,6 +19,19 @@ from economics import calculate_economics
 ROOT = Path(__file__).resolve().parent
 
 
+def public_file(path: str, root: Path = ROOT):
+    relative = Path(path.lstrip("/"))
+    resolved = (root / relative).resolve()
+    allowed = (
+        (path.startswith("/preview/") and resolved.suffix in (".html", ".js", ".css"))
+        or re.fullmatch(r"/outputs/[A-Za-z0-9_-]+/(forecast_\d{8}T\d{4}Z\.(csv|json)|run\.json|evaluation\.(csv|json)|evaluation-hours\.csv)", path)
+        or (path.startswith("/outputs/reports/") and resolved.suffix in (".pdf", ".html", ".svg", ".png", ".json", ".zip", ".csv"))
+    )
+    if allowed and ".." not in relative.parts and resolved.is_relative_to(root.resolve()) and resolved.is_file():
+        return resolved
+    return None
+
+
 def report_input(payload: dict, root: Path = ROOT):
     if not isinstance(payload, dict):
         raise ValueError("Expected a JSON object")
@@ -83,14 +96,7 @@ class Handler(SimpleHTTPRequestHandler):
             return None
         if path == "/preview/":
             path += "index.html"
-        relative = Path(path.lstrip("/"))
-        resolved = (ROOT / relative).resolve()
-        allowed = (
-            (path.startswith("/preview/") and resolved.suffix in (".html", ".js", ".css"))
-            or (re.fullmatch(r"/outputs/[A-Za-z0-9_-]+/(forecast_\d{8}T\d{4}Z\.(csv|json)|run\.json|evaluation\.(csv|json)|evaluation-hours\.csv)", path) is not None)
-            or (path.startswith("/outputs/reports/") and resolved.suffix in (".pdf", ".html", ".svg", ".png", ".json", ".zip", ".csv"))
-        )
-        if not allowed or ".." in relative.parts or not resolved.is_relative_to(ROOT) or not resolved.is_file():
+        if public_file(path) is None:
             self.send_error(404)
             return None
         self.path = path

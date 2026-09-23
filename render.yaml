@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: alem-wind-mvp
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: codex/initial-wind-forecast
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit

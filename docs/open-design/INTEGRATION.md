@@ -56,3 +56,8 @@ node tests/economics-ui.test.cjs
 
 Use a separate feature branch when collaborating with Elias. This integration
 does not require replacing his backend, rebasing his branch, or force-pushing.
+
+Merged Elias's `e11689b` Docker/Flask deployment into this branch. The new map
+assets are served by its existing public-file allowlist. Windows accounts without
+symlink privileges skip only the symlink-specific test; the remaining file-access
+checks still run. Linux CI retains that test and also runs `map-ui.test.cjs`.

@@ -1,0 +1,33 @@
+----------------------------------------------------------------------
+Ran 61 tests in 35.443s
+
+OK
+✔ report sends economic assumptions and discards a response after tariff changes (10.204292ms)
+✔ model reports use the selected artifact origin instead of the hidden demo date (2.20325ms)
+✔ offline report request shows a local recovery command and restores the button (2.804666ms)
+✔ nonlocal and privileged origins use the known local development port (8.586833ms)
+✔ a dropped response body gives connection recovery guidance (1.006208ms)
+✔ ordinary static servers receive the service startup instructions (1.907083ms)
+✔ server validation errors retain their useful message (6.547875ms)
+✔ successful generation exposes links; failed regeneration clears old results immediately (2.810833ms)
+✔ changing the forecast prevents a stale success from reappearing (1.171875ms)
+✔ a stale failed request does not hide a newer successful report (0.904666ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64.503166
+✔ model economics sends only assumptions and artifact identity; clearing a forecast clears money (57.552958ms)
+✔ changing a tariff prevents an old monetary result from reappearing (4.293ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 76.955959
+PASS: preview evaluation accepts gaps/non-midnight origins and rejects stale, mismatched, duplicate data
